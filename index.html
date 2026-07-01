@@ -892,7 +892,10 @@
       <button class="btn-primary" style="flex:1;" onclick="saveFirebaseConfig()">Conectar Firebase</button>
       <button class="btn-outline" style="flex:1;" onclick="disconnectFirebase()">Desconectar</button>
     </div>
-    <button class="btn-outline" style="width:100%;margin-bottom:8px;" onclick="diagFirebase()">🔍 Testar conexão agora</button>
+    <div style="display:flex;gap:8px;margin-bottom:8px;">
+      <button class="btn-outline" style="flex:1;" onclick="diagFirebase()">🔍 Testar conexão</button>
+      <button class="btn-sm" style="flex:1;" onclick="forcePush()">📤 Enviar dados agora</button>
+    </div>
     <div style="font-size:11px;color:var(--text3);margin-top:4px;">
       💡 Guia: <a href="https://console.firebase.google.com" target="_blank" style="color:var(--teal);">console.firebase.google.com</a> → Criar projeto → Firestore → Configurações → SDK
     </div>
@@ -3132,6 +3135,8 @@ function connectFirestore(cfg){
     fbApp=firebase.initializeApp({apiKey:cfg.apiKey,projectId:cfg.projectId,appId:cfg.appId},'nos-dois');
     fbDb=fbApp.firestore();
     updateFirebaseStatus(cfg,true);
+    // Após conectar: primeiro verifica se há dados remotos mais recentes,
+    // senão envia os dados locais para o Firebase
     startFirebaseSync(cfg.coupleId);
     toast('🔥 Firebase conectado!');
   }catch(e){
@@ -3143,17 +3148,37 @@ function connectFirestore(cfg){
 function startFirebaseSync(coupleId){
   if(fbUnsub)fbUnsub();
   const docRef=fbDb.collection('casais').doc(coupleId);
+  // Primeiro: verifica o estado atual do documento antes de escutar
+  docRef.get().then(snap=>{
+    if(!snap.exists && state.transactions && state.transactions.length>0){
+      // Documento vazio no Firebase mas temos dados locais → envia tudo agora
+      pushToFirebase();
+      toast('📤 Enviando seus dados para o Firebase...');
+    } else if(snap.exists){
+      const remote=snap.data();
+      const remoteTs=remote._updatedAt||0;
+      const localTs=state._updatedAt||0;
+      if(remoteTs>localTs){
+        // Dados remotos mais recentes → baixa
+        Object.assign(state,remote);
+        localStorage.setItem('fc-state3',JSON.stringify(state));
+        renderDashboard();
+        toast('🔄 Dados sincronizados do Firebase');
+      } else if(localTs>remoteTs && state.transactions && state.transactions.length>0){
+        // Dados locais mais recentes → envia
+        pushToFirebase();
+      }
+    }
+  }).catch(e=>toast('Erro ao verificar Firebase: '+e.message));
+
   // Escuta mudanças em tempo real
   fbUnsub=docRef.onSnapshot(snap=>{
     if(snap.exists){
       const remote=snap.data();
-      // Bug fix: aceita dados remotos se forem mais novos OU se não houver
-      // timestamp local ainda (primeiro acesso no dispositivo da esposa)
       const remoteTs=remote._updatedAt||0;
       const localTs=state._updatedAt||0;
-      if(remoteTs>localTs||localTs===0){
+      if(remoteTs>localTs){
         Object.assign(state,remote);
-        // Salva localmente sem disparar push de volta ao Firebase
         localStorage.setItem('fc-state3',JSON.stringify(state));
         renderDashboard();
         toast('🔄 Dados sincronizados');
@@ -3190,6 +3215,14 @@ function updateFirebaseStatus(cfg,ok,err){
 }
 
 // save() já inclui o push para o Firebase (definido próximo ao state, linha ~1139)
+
+// ─── FORCE PUSH ────────────────────────────────────────────────────────────
+function forcePush(){
+  if(!fbDb){toast('Firebase não conectado. Clique em Conectar primeiro.');return;}
+  pushToFirebase();
+  toast('📤 Enviando '+state.transactions.length+' transações para o Firebase...');
+  setTimeout(()=>diagFirebase(),2000);
+}
 
 // ─── DIAGNÓSTICO FIREBASE ──────────────────────────────────────────────────
 function diagFirebase(){
