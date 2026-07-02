@@ -1227,9 +1227,17 @@ function isFavorito(t){
 function usarFavorito(fid){
   const f=(state.favoritos||[]).find(x=>x.id===fid);if(!f)return;
   const today=new Date().toISOString().slice(0,10);
-  const tx={id:Date.now().toString(),amount:f.amount,desc:f.desc,person:f.person,payment:f.payment,cat:f.cat,date:today,isFixo:false};
+  // Bug fix: se favorito é de cartão, calcula faturaCartao para hoje
+  const cartaoId=f.cartaoId||(f.payment==='cartao'&&state.cartoes.length===1?state.cartoes[0].id:null);
+  const faturaCartao=f.payment==='cartao'&&cartaoId?calcFaturaMes(today,cartaoId):undefined;
+  const tx={
+    id:Date.now().toString(),amount:f.amount,desc:f.desc,person:f.person,
+    payment:f.payment,cat:f.cat,date:today,isFixo:false,
+    ...(cartaoId?{cartaoId}:{}),
+    ...(faturaCartao?{faturaCartao}:{})
+  };
   state.transactions.push(tx);save();
-  toast(`✓ ${f.desc} — ${fmtBRL(f.amount)} lançado!`);renderDashboard();
+  toast(`✓ ${f.desc} — ${fmtBRL(f.amount)} lançado!`);renderDashboard();renderReceitas();
 }
 
 function renderFavoritos(){
@@ -1338,12 +1346,17 @@ function initSwipe(){
 function duplicarTx(id){
   const t=state.transactions.find(x=>x.id===id);if(!t)return;
   const today=new Date().toISOString().slice(0,10);
-  const clone={...t,id:Date.now().toString(),date:today,isFixo:false,recorrente:undefined};
+  const clone={...t,id:Date.now().toString(),date:today,isFixo:false};
   delete clone.recorrente;
+  delete clone.parcelaGrupo;delete clone.parcelaNum;delete clone.parcelaTotal;delete clone.parcelaInfo;
+  // Bug fix: recalcula faturaCartao para a data de hoje (não herda a fatura original)
+  if(clone.payment==='cartao'&&clone.cartaoId){
+    clone.faturaCartao=calcFaturaMes(today,clone.cartaoId);
+  }
   state.transactions.push(clone);save();
   toast('✓ Lançamento duplicado para hoje!');
+  renderDashboard();renderReceitas();
   const active=document.querySelector('.page.active')?.id;
-  if(active==='page-dashboard')renderDashboard();
   if(active==='page-history')renderHistory();
 }
 function p1(){return state.p1Name||'Pessoa 1';}
@@ -1381,6 +1394,9 @@ function changeMonth(dir){
   if(active==='dashboard')renderDashboard();
   if(active==='history')renderHistory();
   if(active==='cal')renderCal();
+  // Bug fix: atualiza metas e receitas ao trocar de mês (renda/metas são por mês)
+  if(active==='metas')renderMetas();
+  if(active==='receitas')renderReceitas();
   updateMonthLabel();
 }
 
@@ -2289,13 +2305,20 @@ function addTransaction(){
     for(let i=0;i<parcN;i++){
       const d=new Date(y,m-1+i,1);
       const mo=d.toISOString().slice(0,7);
-      const dateStr=`${mo}-01`;
+      // Usa o dia 15 do mês como data de referência para calcular a fatura correta.
+      // Isso evita que o fechamento do dia 1 jogue a parcela para a fatura do mês anterior.
+      const dateRef=`${mo}-15`;
+      // Se o cartão está associado, calcula a fatura real via calcFaturaMes (respeita fechamento).
+      // Se não há cartão, o mês da parcela É o mês da fatura (comportamento simples).
+      const faturaCartao=cartaoIdSelecionado
+        ? calcFaturaMes(dateRef, cartaoIdSelecionado)
+        : mo;
       state.transactions.push({
         id:'parc-'+Date.now()+'-'+i, amount:parcVal, desc,
-        person:selPerson, payment:'cartao', cat:selCat, date:dateStr,
+        person:selPerson, payment:'cartao', cat:selCat, date:dateRef,
         parcelaGrupo:desc+'-'+parcInicio, parcelaNum:i+1, parcelaTotal:parcN,
         parcelaInfo:`${i+1}/${parcN}`,
-        faturaCartao:mo,  // cada parcela é sua própria fatura
+        faturaCartao,  // fatura correta conforme fechamento do cartão
         cartaoId:cartaoIdSelecionado,
         isFixo:false
       });
@@ -2355,8 +2378,11 @@ function deleteTx(id){
   const label=`${cat?.label.split(' ')[0]||'📦'} ${t.desc} — ${fmtBRL(t.amount)}`;
   if(!confirm(`Apagar este lançamento?\n\n${label}\n\nEssa ação não pode ser desfeita.`))return;
   state.transactions=state.transactions.filter(t=>t.id!==id);save();
+  // Bug fix: sempre re-renderiza dashboard e receitas para atualizar limites,
+  // independente de qual aba está ativa
+  renderDashboard();
+  renderReceitas();
   const active=document.querySelector('.page.active')?.id;
-  if(active==='page-dashboard')renderDashboard();
   if(active==='page-history')renderHistory();
   if(active==='page-cal')renderCal();
 }
@@ -2391,9 +2417,18 @@ function saveEdit(){
   t.cat=document.getElementById('edit-cat').value||t.cat;
   const selPb=document.querySelector('#edit-person-btns .selected');
   if(selPb)t.person=selPb.id.replace('epp-','');
+  // Bug fix: recalcula faturaCartao se data ou forma de pagamento foi alterada,
+  // para que o gasto continue caindo na fatura correta do cartão
+  if(t.payment==='cartao'&&t.cartaoId){
+    t.faturaCartao=calcFaturaMes(t.date,t.cartaoId);
+  } else if(t.payment!=='cartao'){
+    delete t.faturaCartao;
+    delete t.cartaoId;
+  }
   save();closeModal();
+  // Bug fix: re-renderiza dashboard e receitas independente da aba ativa
+  renderDashboard();renderReceitas();
   const active=document.querySelector('.page.active')?.id;
-  if(active==='page-dashboard')renderDashboard();
   if(active==='page-history')renderHistory();
   toast('Lançamento atualizado!');
 }
@@ -2781,7 +2816,9 @@ function renderMetas(){
   const catAvg={};last3.forEach(mo=>monthTx(mo).forEach(t=>{catAvg[t.cat]=(catAvg[t.cat]||0)+t.amount;}));
   const sugs=Object.entries(catAvg).map(([cat,total])=>({cat,avg:total/last3.length})).filter(s=>s.avg>50&&!state.metas.find(m=>m.cat===s.cat)).sort((a,b)=>b.avg-a.avg).slice(0,3);
   sugDiv.innerHTML=sugs.length?'<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">💡 Sugestões pelo histórico:</div>'+sugs.map(s=>{const cat=getAllCats().find(c=>c.id===s.cat);const sug=Math.round(s.avg*.9);return`<button class="suggest-pill" onclick="applySuggestion('${s.cat}',${sug})">${cat?.label||s.cat} → ${fmtBRL(sug)}/mês</button>`;}).join(''):'';
-  const txs=monthTx();
+  // Bug fix: usa monthFluxoCaixa (igual ao budget card) para que as metas
+  // reflitam o mesmo valor que o card de orçamento — cartão conta no mês da fatura
+  const txs=monthFluxoCaixa();
   document.getElementById('metas-list').innerHTML=state.metas.length?state.metas.map(m=>{
     const cat=getAllCats().find(c=>c.id===m.cat);const spent=txs.filter(t=>t.cat===m.cat).reduce((s,t)=>s+t.amount,0);
     const pct=Math.min(Math.round(spent/m.value*100),100);const over=spent>m.value;
