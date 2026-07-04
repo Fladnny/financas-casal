@@ -3948,9 +3948,7 @@ function autoLancarFixos(){
   );
 
   if(algumJaLancado){
-    if(!confirm('Alguns gastos fixos já foram lançados manualmente este mês.
-
-Deseja lançar os que ainda estão pendentes automaticamente?'))return;
+    if(!confirm('Alguns gastos fixos já foram lançados manualmente este mês.\n\nDeseja lançar os que ainda estão pendentes automaticamente?'))return;
   }
 
   const[y,m]=mesAtual.split('-').map(Number);
