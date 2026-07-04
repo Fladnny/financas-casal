@@ -712,6 +712,11 @@
   </div>
 </div>
 
+<!-- FATURAS -->
+<div id="page-faturas" class="page">
+  <div id="faturas-visao-content"></div>
+</div>
+
 <!-- ANÁLISES -->
 <div id="page-analises" class="page">
   <div class="card">
@@ -1053,6 +1058,10 @@
     <svg viewBox="0 0 24 24"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
     <span>Análises</span>
   </button>
+  <button class="bnav-btn" id="bnav-faturas" onclick="showPage('faturas',this)">
+    <svg viewBox="0 0 24 24"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+    <span>Faturas</span>
+  </button>
   <button class="bnav-btn" id="bnav-config" onclick="showPage('config',this)">
     <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
     <span>Config</span>
@@ -1377,6 +1386,7 @@ function showPage(id,btn){
   if(id==='config')renderConfig();
   if(id==='cal')renderCal();
   if(id==='analises')renderAnalises();
+  if(id==='faturas')renderFaturasVisao();
   if(id==='receitas')renderReceitas();
   if(id==='add'){
     document.getElementById('f-data').value=new Date().toISOString().slice(0,10);
@@ -1389,15 +1399,20 @@ function changeMonth(dir){
   const[y,m]=state.currentMonth.split('-').map(Number);
   const d=new Date(y,m-1+dir,1);
   state.currentMonth=d.toISOString().slice(0,7);
-  save();
+  // Salva só localmente (não dispara Firebase) para evitar que o listener
+  // remoto devolva dados com o mês antigo e sobrescreva a navegação
+  localStorage.setItem('fc-state3',JSON.stringify(state));
+  updateMonthLabel();
+  // Re-renderiza qualquer aba que esteja ativa
   const active=document.querySelector('.page.active')?.id?.replace('page-','');
   if(active==='dashboard')renderDashboard();
-  if(active==='history')renderHistory();
-  if(active==='cal')renderCal();
-  // Bug fix: atualiza metas e receitas ao trocar de mês (renda/metas são por mês)
-  if(active==='metas')renderMetas();
-  if(active==='receitas')renderReceitas();
-  updateMonthLabel();
+  else if(active==='history')renderHistory();
+  else if(active==='cal')renderCal();
+  else if(active==='metas')renderMetas();
+  else if(active==='receitas')renderReceitas();
+  else if(active==='analises')renderAnalises();
+  else if(active==='faturas')renderFaturasVisao();
+  else renderDashboard(); // fallback
 }
 
 function updateMonthLabel(){
@@ -3253,6 +3268,119 @@ function updateFirebaseStatus(cfg,ok,err){
 
 // save() já inclui o push para o Firebase (definido próximo ao state, linha ~1139)
 
+// ─── VISÃO CONSOLIDADA DE FATURAS ──────────────────────────────────────────
+function renderFaturasVisao(){
+  const el=document.getElementById('faturas-visao-content');
+  if(!el)return;
+
+  if(!state.cartoes.length){
+    el.innerHTML=`<div class="card"><div class="empty" style="padding:24px 0;">
+      Nenhum cartão cadastrado.<br><br>
+      Vá em <strong>Config → Cartões</strong> para adicionar.
+    </div></div>`;
+    return;
+  }
+
+  const now=new Date();
+  // Monta os próximos 4 meses de fatura para cada cartão
+  const meses=[];
+  for(let i=-1;i<=4;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()+i,1);
+    meses.push(d.toISOString().slice(0,7));
+  }
+
+  let html='';
+
+  state.cartoes.forEach(cartao=>{
+    // Fatura atual = mês que está aberto agora (calculada para hoje)
+    const faturaAtual=calcFaturaMes(now.toISOString().slice(0,10),cartao.id);
+    const vencAtual=calcDataVencimento(faturaAtual,cartao.id);
+    const vencAtualFmt=vencAtual?vencAtual.split('-').reverse().join('/'):'—';
+
+    // Agrupa transações por mês de fatura
+    const porFatura={};
+    state.transactions.filter(t=>t.payment==='cartao'&&t.cartaoId===cartao.id).forEach(t=>{
+      const f=t.faturaCartao||t.date.slice(0,7);
+      if(!porFatura[f])porFatura[f]=[];
+      porFatura[f].push(t);
+    });
+
+    // Calcula total da fatura atual
+    const txsAtuais=porFatura[faturaAtual]||[];
+    const totalAtual=txsAtuais.reduce((s,t)=>s+t.amount,0);
+
+    // Lista de compras da fatura atual (ordenada por data desc)
+    const listaCompras=txsAtuais.length
+      ? [...txsAtuais].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
+          const cat=getCat(t.cat);
+          const dataFmt=t.date.split('-').reverse().slice(0,2).join('/');
+          const parcela=t.parcelaInfo?` <span style="color:var(--purple);font-size:10px;">(${t.parcelaInfo})</span>`:'';
+          return`<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <span style="font-size:16px;">${cat.label.split(' ')[0]}</span>
+              <div>
+                <div style="font-size:13px;font-weight:500;">${t.desc}${parcela}</div>
+                <div style="font-size:11px;color:var(--text3);">${dataFmt} · ${t.person==='p1'?p1():t.person==='p2'?p2():'Ambos'}</div>
+              </div>
+            </div>
+            <div style="font-weight:700;color:var(--text);font-size:13px;">${fmtBRL(t.amount)}</div>
+          </div>`;
+        }).join('')
+      : '<div class="empty" style="padding:12px 0;">Nenhuma compra nesta fatura</div>';
+
+    // Faturas futuras comprometidas
+    const futuras=meses.filter(m=>m>faturaAtual).map(m=>{
+      const txs=porFatura[m]||[];
+      const total=txs.reduce((s,t)=>s+t.amount,0);
+      if(!total)return'';
+      const venc=calcDataVencimento(m,cartao.id);
+      const vencFmt=venc?venc.split('-').reverse().join('/'):'—';
+      return`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border);">
+        <div>
+          <div style="font-size:12px;font-weight:600;">${faturaLabel(m)}</div>
+          <div style="font-size:11px;color:var(--text3);">Vence ${vencFmt} · ${txs.length} compra${txs.length!==1?'s':''}</div>
+        </div>
+        <div style="font-weight:700;color:var(--blue);font-size:13px;">${fmtBRL(total)}</div>
+      </div>`;
+    }).filter(Boolean).join('');
+
+    const corCartao=cartao.cor||'var(--blue)';
+
+    html+=`<div class="card" style="margin-bottom:14px;">
+      <!-- Cabeçalho do cartão -->
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
+        <div style="width:36px;height:22px;border-radius:4px;background:${corCartao};"></div>
+        <div>
+          <div style="font-size:16px;font-weight:700;">${cartao.nome}</div>
+          <div style="font-size:11px;color:var(--text3);">Fecha dia ${cartao.fechamento} · Vence dia ${cartao.vencimento}</div>
+        </div>
+      </div>
+
+      <!-- Fatura atual -->
+      <div style="background:var(--blue-light);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <div style="font-size:12px;font-weight:600;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;">Fatura atual · ${faturaLabel(faturaAtual)}</div>
+          <div style="font-size:18px;font-weight:800;color:var(--blue);">${fmtBRL(totalAtual)}</div>
+        </div>
+        <div style="font-size:11px;color:var(--text3);">Vencimento: ${vencAtualFmt} · ${txsAtuais.length} compra${txsAtuais.length!==1?'s':''}</div>
+      </div>
+
+      <!-- Lista de compras -->
+      <div style="margin-bottom:${futuras?'14px':'0'};">
+        ${listaCompras}
+      </div>
+
+      ${futuras?`<!-- Faturas futuras -->
+      <div>
+        <div style="font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Comprometido nas próximas faturas</div>
+        ${futuras}
+      </div>`:''}
+    </div>`;
+  });
+
+  el.innerHTML=html;
+}
+
 // ─── FORCE PUSH ────────────────────────────────────────────────────────────
 function forcePush(){
   if(!fbDb){toast('Firebase não conectado. Clique em Conectar primeiro.');return;}
@@ -3804,6 +3932,55 @@ function exibirResultadoTestes(){
 // ─── TOAST ─────────────────────────────────────────────────────────────────
 function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2500);}
 
+// ─── RECORRÊNCIA AUTOMÁTICA (dia 1º do mês) ────────────────────────────────
+function autoLancarFixos(){
+  if(!state.recorrentes.length)return;
+  const hoje=new Date();
+  if(hoje.getDate()!==1)return; // só roda no dia 1º
+
+  const mesAtual=hoje.toISOString().slice(0,7);
+  const chave='auto-fixos-'+mesAtual;
+  if(localStorage.getItem(chave))return; // já rodou hoje neste mês
+
+  // Verifica se algum fixo já foi lançado manualmente neste mês
+  const algumJaLancado=state.recorrentes.some(r=>
+    state.transactions.find(t=>t.recorrente===r.id&&t.date.startsWith(mesAtual))
+  );
+
+  if(algumJaLancado){
+    if(!confirm('Alguns gastos fixos já foram lançados manualmente este mês.
+
+Deseja lançar os que ainda estão pendentes automaticamente?'))return;
+  }
+
+  const[y,m]=mesAtual.split('-').map(Number);
+  let added=0;
+  state.recorrentes.forEach(r=>{
+    const exists=state.transactions.find(t=>t.recorrente===r.id&&t.date.startsWith(mesAtual));
+    if(exists)return;
+    const dia=clampDiaNoMes(r.dia,y,m);
+    const date=`${mesAtual}-${String(dia).padStart(2,'0')}`;
+    const isCartao=r.payment==='cartao'&&r.cartaoId&&r.cartaoId!=='na';
+    const faturaCartao=isCartao?calcFaturaMes(date,r.cartaoId):null;
+    state.transactions.push({
+      id:Date.now().toString()+Math.random(),
+      amount:r.valor,desc:r.nome,person:'ambos',payment:r.payment,cat:r.cat,date,
+      recorrente:r.id,isFixo:true,
+      ...(isCartao?{cartaoId:r.cartaoId,faturaCartao}:{})
+    });
+    added++;
+  });
+
+  if(added>0){
+    save();
+    localStorage.setItem(chave,'1');
+    toast(`🔁 ${added} gasto${added!==1?'s':''} fixo${added!==1?'s':''} lançado${added!==1?'s':''} automaticamente!`);
+    renderDashboard();
+  } else {
+    localStorage.setItem(chave,'1');
+  }
+}
+
 // ─── INIT ──────────────────────────────────────────────────────────────────
 runMigrations();
 initTheme();
@@ -3825,6 +4002,7 @@ registerSW();
 loadNotifPrefs();
 loadFirebaseConfig();
 agendarResumoSemanal();
+setTimeout(autoLancarFixos, 1500); // lança fixos no dia 1º após carregar
 initSwipe();
 // Mostra o FAB no Resumo (página inicial)
 const fab=document.getElementById('qa-fab');
