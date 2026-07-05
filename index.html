@@ -1671,9 +1671,10 @@ function renderBudgetCard(){
   if(isCurrent){
     const hoje=now.getDate();
     diasRestantes=daysInMonth-hoje+1;
-    // gasto de "hoje" considera apenas o que efetivamente sai do bolso hoje:
-    // pix/dinheiro lançados hoje, e cartão cuja fatura é deste mês corrente
-    gastoHoje=txs.filter(t=>t.date===now.toISOString().slice(0,10)).reduce((s,t)=>s+t.amount,0);
+    // gasto de "hoje" = apenas pix/dinheiro lançados hoje
+    // cartão NÃO entra aqui pois já está computado no total via fatura do mês
+    const hoje_str=now.toISOString().slice(0,10);
+    gastoHoje=state.transactions.filter(t=>t.date===hoje_str&&t.payment!=='cartao').reduce((s,t)=>s+t.amount,0);
     mediaHoje=diasRestantes>0?saldoDisponivel/diasRestantes:0;
   }else{
     diasRestantes=daysInMonth;gastoHoje=0;mediaHoje=saldoDisponivel/daysInMonth;
@@ -1758,7 +1759,14 @@ function renderDashboard(){
   if(isCurrent&&txs.length>0){
     const day=now.getDate();
     const days=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
-    const proj=Math.round((total/day)*days);
+    // Separa gastos que são "fixos do mês" (faturas de cartão + recorrentes)
+    // dos gastos variáveis diários (pix/dinheiro não-recorrentes).
+    // Só projeta os variáveis — faturas já são valores conhecidos, não devem
+    // ser multiplicadas pelos dias restantes.
+    const gastoFixoMes=txs.filter(t=>t.payment==='cartao'||t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
+    const gastoVariavel=txs.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente).reduce((s,t)=>s+t.amount,0);
+    const projVariavel=day>0?Math.round((gastoVariavel/day)*days):0;
+    const proj=gastoFixoMes+projVariavel;
     banner.style.display='flex';
     document.getElementById('s-proj-sub').textContent='Projeção: '+fmtBRL(proj);
     const title=document.getElementById('proj-title');
@@ -1857,7 +1865,16 @@ function renderFaturasCartoesCard(){
   const mesRef=state.currentMonth;
 
   content.innerHTML=state.cartoes.map(c=>{
-    const txsFatura=state.transactions.filter(t=>t.payment==='cartao'&&t.cartaoId===c.id&&t.faturaCartao===mesRef);
+    // Fix 4: filtra pelo mês de vencimento (fluxo de caixa), igual ao monthFluxoCaixa,
+    // para que o valor bata com o total de gastos exibido no dashboard
+    const txsFatura=state.transactions.filter(t=>{
+      if(t.payment!=='cartao'||t.cartaoId!==c.id) return false;
+      if(t.faturaCartao&&t.cartaoId){
+        const venc=calcDataVencimento(t.faturaCartao,t.cartaoId);
+        return (venc?venc.slice(0,7):t.faturaCartao)===mesRef;
+      }
+      return (t.faturaCartao||t.date.slice(0,7))===mesRef;
+    });
     const total=txsFatura.reduce((s,t)=>s+t.amount,0);
     const qtdFixos=state.recorrentes.filter(r=>r.payment==='cartao'&&r.cartaoId===c.id).length;
     const venc=calcDataVencimento(mesRef,c.id);
@@ -2375,7 +2392,8 @@ function addTransaction(){
 
 function checkAlerts(tx){
   const meta=state.metas.find(m=>m.cat===tx.cat);if(!meta)return;
-  const total=monthTx().filter(t=>t.cat===tx.cat).reduce((s,t)=>s+t.amount,0);
+  // Fix 1: usa fluxo de caixa para consistência com metas e budget card
+  const total=monthFluxoCaixa().filter(t=>t.cat===tx.cat).reduce((s,t)=>s+t.amount,0);
   if(total>meta.value){
     const cat=getAllCats().find(c=>c.id===tx.cat);
     const label=cat?.label||tx.cat;
@@ -2828,7 +2846,8 @@ function renderMetas(){
   const sugDiv=document.getElementById('sugestoes-meta');
   const now=new Date();const last3=[];
   for(let i=1;i<=3;i++){const d=new Date(now.getFullYear(),now.getMonth()-i,1);last3.push(d.toISOString().slice(0,7));}
-  const catAvg={};last3.forEach(mo=>monthTx(mo).forEach(t=>{catAvg[t.cat]=(catAvg[t.cat]||0)+t.amount;}));
+  // Fix 6: usa fluxo de caixa para consistência com as metas e budget card
+  const catAvg={};last3.forEach(mo=>monthFluxoCaixa(mo).forEach(t=>{catAvg[t.cat]=(catAvg[t.cat]||0)+t.amount;}));
   const sugs=Object.entries(catAvg).map(([cat,total])=>({cat,avg:total/last3.length})).filter(s=>s.avg>50&&!state.metas.find(m=>m.cat===s.cat)).sort((a,b)=>b.avg-a.avg).slice(0,3);
   sugDiv.innerHTML=sugs.length?'<div style="font-size:12px;color:var(--text3);margin-bottom:6px;">💡 Sugestões pelo histórico:</div>'+sugs.map(s=>{const cat=getAllCats().find(c=>c.id===s.cat);const sug=Math.round(s.avg*.9);return`<button class="suggest-pill" onclick="applySuggestion('${s.cat}',${sug})">${cat?.label||s.cat} → ${fmtBRL(sug)}/mês</button>`;}).join(''):'';
   // Bug fix: usa monthFluxoCaixa (igual ao budget card) para que as metas
@@ -3588,10 +3607,19 @@ function saveInlineEdit(id){
   t.payment=document.getElementById('ie-pay-'+id)?.value||t.payment;
   t.date=document.getElementById('ie-date-'+id)?.value||t.date;
   t.tags=inlineEditTags.length?[...inlineEditTags]:undefined;
+  // Fix 2: recalcula faturaCartao se pagamento é cartão (igual ao saveEdit)
+  if(t.payment==='cartao'&&t.cartaoId){
+    t.faturaCartao=calcFaturaMes(t.date,t.cartaoId);
+  } else if(t.payment!=='cartao'){
+    delete t.faturaCartao;
+    delete t.cartaoId;
+  }
   save();closeInlineEdit();
+  // Fix 3: sempre atualiza dashboard e receitas para refletir limites corretos
+  renderDashboard();
+  renderReceitas();
   const active=document.querySelector('.page.active')?.id;
   if(active==='page-history')renderHistory();
-  else renderDashboard();
   toast('✓ Atualizado!');
 }
 
@@ -3647,7 +3675,11 @@ async function gerarInsightsProativos(){
   if(rendaBaseInsight>0&&totalFluxo>0){
     const dia=now.getDate();
     const dias=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
-    const proj=Math.round(totalFluxo/dia*dias);
+    // Fix 5: mesma lógica do dashboard — fixos/faturas entram pelo valor real,
+    // só os variáveis são projetados pelos dias restantes
+    const fixosMes=txsFluxo.filter(t=>t.payment==='cartao'||t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
+    const varMes=txsFluxo.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente).reduce((s,t)=>s+t.amount,0);
+    const proj=fixosMes+(dia>0?Math.round(varMes/dia*dias):0);
     if(proj>rendaBaseInsight*1.05) insights.push({type:'danger',text:`Projeção de ${fmtBRL(proj)} de saída do bolso este mês ultrapassa a renda (${fmtBRL(rendaBaseInsight)}). Reduzam os gastos.`});
   }
 
@@ -3962,7 +3994,10 @@ function autoLancarFixos(){
     const faturaCartao=isCartao?calcFaturaMes(date,r.cartaoId):null;
     state.transactions.push({
       id:Date.now().toString()+Math.random(),
-      amount:r.valor,desc:r.nome,person:'ambos',payment:r.payment,cat:r.cat,date,
+      amount:r.valor,desc:r.nome,
+      // Fix 7: usa a pessoa definida no recorrente, não força 'ambos'
+      person:r.person||'ambos',
+      payment:r.payment,cat:r.cat,date,
       recorrente:r.id,isFixo:true,
       ...(isCartao?{cartaoId:r.cartaoId,faturaCartao}:{})
     });
