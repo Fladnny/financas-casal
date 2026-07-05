@@ -390,6 +390,21 @@
   .install-banner-close{background:rgba(255,255,255,.2);border:none;color:white;font-size:14px;cursor:pointer;padding:4px 8px;border-radius:8px;flex-shrink:0;}
 
   /* ── LANÇAMENTO RÁPIDO ──────────────────────────────────────────────── */
+  /* ── CALCULADORA FLUTUANTE ── */
+  .calc-fab{position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 80px);right:18px;background:var(--card);color:var(--text);border:none;border-radius:50%;width:48px;height:48px;font-size:20px;box-shadow:0 4px 16px rgba(0,0,0,.18);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;}
+  .calc-fab:active{transform:scale(.92);}
+  .calc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;display:flex;align-items:flex-end;justify-content:flex-end;animation:fadeIn .15s ease;}
+  .calc-sheet{background:var(--card);border-radius:18px 18px 0 0;width:72%;max-width:300px;padding:8px 8px calc(8px + env(safe-area-inset-bottom));box-shadow:0 -8px 32px rgba(0,0,0,.2);animation:slideUp .2s ease;}
+  .calc-display{background:var(--bg);border-radius:10px;padding:6px 10px;margin-bottom:6px;text-align:right;}
+  .calc-expr{font-size:10px;color:var(--text3);min-height:13px;word-break:break-all;}
+  .calc-result{font-size:20px;font-weight:700;color:var(--text);word-break:break-all;}
+  .calc-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:4px;}
+  .calc-key{border:none;border-radius:9px;height:36px;font-size:14px;font-weight:700;cursor:pointer;transition:transform .1s,opacity .1s;background:var(--bg);color:var(--text);}
+  .calc-key:active{transform:scale(.93);opacity:.8;}
+  .calc-key.op{background:var(--teal);color:#fff;}
+  .calc-key.eq{background:linear-gradient(135deg,var(--teal),var(--blue));color:white;grid-column:span 2;}
+  .calc-key.del{background:var(--red);color:#fff;}
+  .calc-key.zero{grid-column:span 2;}
   .quick-add-fab{position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 16px);right:18px;background:linear-gradient(135deg,var(--teal),var(--blue));color:white;border:none;border-radius:18px;width:56px;height:56px;font-size:22px;box-shadow:0 6px 20px rgba(0,196,140,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:90;transition:transform .15s,box-shadow .15s;}
   .quick-add-fab:active{transform:scale(.92);box-shadow:0 3px 10px rgba(0,196,140,.3);}
   .quick-add-panel{position:fixed;bottom:calc(var(--nav-h) + env(safe-area-inset-bottom) + 0px);left:0;right:0;background:var(--surface);border-radius:24px 24px 0 0;padding:24px 18px 20px;z-index:91;box-shadow:0 -4px 40px rgba(0,0,0,.18);transform:translateY(100%);transition:transform .3s cubic-bezier(.4,0,.2,1);}
@@ -547,6 +562,7 @@
   </div>
   <button class="btn-primary" onclick="saveQuickAdd()">Salvar</button>
 </div>
+<button class="calc-fab" id="calc-fab" onclick="openCalc()" title="Calculadora">🧮</button>
 <button class="quick-add-fab" id="qa-fab" onclick="openQuickAdd()" title="Lançamento rápido" style="display:none;">⚡</button>
 
 <!-- ADD -->
@@ -3398,6 +3414,119 @@ function renderFaturasVisao(){
   });
 
   el.innerHTML=html;
+}
+
+// ─── CALCULADORA FLUTUANTE ─────────────────────────────────────────────────
+let calcExpr='', calcHasResult=false;
+
+function openCalc(){
+  calcExpr=''; calcHasResult=false;
+  const ov=document.createElement('div');
+  ov.className='calc-overlay';
+  ov.id='calc-overlay';
+  ov.onclick=e=>{if(e.target===ov)closeCalc();};
+  ov.innerHTML=`
+    <div class="calc-sheet" onclick="event.stopPropagation()">
+      <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+        <button onclick="closeCalc()" style="background:var(--bg);border:none;border-radius:8px;padding:3px 10px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;">✕ Fechar</button>
+      </div>
+      <div class="calc-display">
+        <div class="calc-expr" id="calc-expr"></div>
+        <div class="calc-result" id="calc-result">0</div>
+      </div>
+      <div class="calc-grid">
+        <button class="calc-key op" onclick="calcInput('AC')">AC</button>
+        <button class="calc-key op del" onclick="calcInput('DEL')">⌫</button>
+        <button class="calc-key op" onclick="calcInput('%')">%</button>
+        <button class="calc-key op" onclick="calcInput('÷')">÷</button>
+
+        <button class="calc-key" onclick="calcInput('7')">7</button>
+        <button class="calc-key" onclick="calcInput('8')">8</button>
+        <button class="calc-key" onclick="calcInput('9')">9</button>
+        <button class="calc-key op" onclick="calcInput('×')">×</button>
+
+        <button class="calc-key" onclick="calcInput('4')">4</button>
+        <button class="calc-key" onclick="calcInput('5')">5</button>
+        <button class="calc-key" onclick="calcInput('6')">6</button>
+        <button class="calc-key op" onclick="calcInput('-')">−</button>
+
+        <button class="calc-key" onclick="calcInput('1')">1</button>
+        <button class="calc-key" onclick="calcInput('2')">2</button>
+        <button class="calc-key" onclick="calcInput('3')">3</button>
+        <button class="calc-key op" onclick="calcInput('+')">+</button>
+
+        <button class="calc-key zero" onclick="calcInput('0')">0</button>
+        <button class="calc-key" onclick="calcInput(',')">,</button>
+        <button class="calc-key eq" onclick="calcInput('=')">=</button>
+      </div>
+    </div>`;
+  document.body.appendChild(ov);
+}
+
+function closeCalc(){
+  document.getElementById('calc-overlay')?.remove();
+}
+
+function calcInput(key){
+  const exprEl=document.getElementById('calc-expr');
+  const resEl=document.getElementById('calc-result');
+
+  if(key==='AC'){calcExpr='';calcHasResult=false;resEl.textContent='0';exprEl.textContent='';return;}
+  if(key==='DEL'){
+    if(calcHasResult){calcExpr='';calcHasResult=false;resEl.textContent='0';exprEl.textContent='';}
+    else{calcExpr=calcExpr.slice(0,-1);}
+    resEl.textContent=calcExpr||'0';
+    exprEl.textContent='';
+    return;
+  }
+  if(key==='='){
+    if(!calcExpr)return;
+    try{
+      exprEl.textContent=calcExpr+'=';
+      // Substitui símbolos visuais por operadores JS
+      const expr=calcExpr
+        .replace(/÷/g,'/')
+        .replace(/×/g,'*')
+        .replace(/,/g,'.')
+        .replace(/(\d+)%/g,'($1/100)');
+      const result=Function('"use strict";return ('+expr+')')();
+      const fmt=Number.isFinite(result)
+        ? parseFloat(result.toFixed(10)).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2})
+        : 'Erro';
+      resEl.textContent=fmt;
+      calcExpr=String(parseFloat(result.toFixed(10)));
+      calcHasResult=true;
+    }catch{resEl.textContent='Erro';calcExpr='';}
+    return;
+  }
+
+  const ops=['÷','×','+','-','%'];
+  const isOp=ops.includes(key);
+
+  if(calcHasResult&&!isOp){calcExpr='';calcHasResult=false;}
+  if(calcHasResult&&isOp)calcHasResult=false;
+
+  // Evita dois operadores seguidos
+  if(isOp&&calcExpr&&ops.includes(calcExpr.slice(-1)))calcExpr=calcExpr.slice(0,-1);
+  // Evita duas vírgulas no mesmo número
+  if(key===','){
+    const parts=calcExpr.split(/[÷×+\-]/);
+    if(parts[parts.length-1].includes(','))return;
+  }
+
+  calcExpr+=key;
+  exprEl.textContent='';
+
+  // Mostra resultado parcial enquanto digita
+  try{
+    const expr=calcExpr.replace(/÷/g,'/').replace(/×/g,'*').replace(/,/g,'.').replace(/(\d+)%/g,'($1/100)');
+    const result=Function('"use strict";return ('+expr+')')();
+    if(Number.isFinite(result)&&!isOp){
+      resEl.textContent=parseFloat(result.toFixed(10)).toLocaleString('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:2});
+    } else {
+      resEl.textContent=calcExpr;
+    }
+  }catch{resEl.textContent=calcExpr;}
 }
 
 // ─── FORCE PUSH ────────────────────────────────────────────────────────────
