@@ -1905,27 +1905,31 @@ function renderFaturasCartoesCard(){
   if(!state.cartoes.length){card.style.display='none';return;}
   card.style.display='block';
 
-  const now=new Date();
   const mesRef=state.currentMonth;
 
   content.innerHTML=state.cartoes.map(c=>{
-    // Fix 4: filtra pelo mês de vencimento (fluxo de caixa), igual ao monthFluxoCaixa,
-    // para que o valor bata com o total de gastos exibido no dashboard
-    const txsFatura=state.transactions.filter(t=>{
-      if(t.payment!=='cartao'||t.cartaoId!==c.id) return false;
-      if(t.faturaCartao&&t.cartaoId){
-        const venc=calcDataVencimento(t.faturaCartao,t.cartaoId);
-        return (venc?venc.slice(0,7):t.faturaCartao)===mesRef;
-      }
-      return (t.faturaCartao||t.date.slice(0,7))===mesRef;
-    });
+    // Fix 9: valor e data de vencimento precisam ser da MESMA fatura.
+    // Antes, a data exibida era da fatura cujo mês NOMINAL é mesRef (fecha
+    // neste mês, vence no mês seguinte), mas o valor somava as transações
+    // de uma fatura DIFERENTE (a que VENCE em mesRef, ou seja, a do ciclo
+    // anterior) — por isso o card podia mostrar R$ 0,00 mesmo havendo
+    // gastos reais na fatura que está prestes a fechar.
+    // Agora as duas coisas usam a mesma referência: a fatura cujo mês
+    // nominal é o mês selecionado (mesRef), que é também a fatura "atual/
+    // próxima" mostrada na aba Faturas.
+    const txsFatura=state.transactions.filter(t=>
+      t.payment==='cartao'&&t.cartaoId===c.id&&(t.faturaCartao||t.date.slice(0,7))===mesRef
+    );
     const total=txsFatura.reduce((s,t)=>s+t.amount,0);
     const qtdFixos=state.recorrentes.filter(r=>r.payment==='cartao'&&r.cartaoId===c.id).length;
     const venc=calcDataVencimento(mesRef,c.id);
     const vencFmt=venc?venc.split('-').reverse().join('/'):'—';
+    const ic=cartaoIconInfo(c);
     return`<div class="fatura-futura-item">
       <div>
-        <div class="fatura-futura-mes" style="color:${c.cor}">💳 ${c.nome}</div>
+        <div class="fatura-futura-mes" style="color:${c.cor};display:flex;align-items:center;gap:6px;">
+          <span style="display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:6px;background:${ic.bg};color:${ic.fg};font-size:${ic.isBandeira?'8px':'12px'};font-weight:800;text-transform:uppercase;flex-shrink:0;">${ic.content}</span>${c.nome}
+        </div>
         <div style="font-size:11px;color:var(--text3)">Vence ${vencFmt}${qtdFixos?` · ${qtdFixos} fixo(s)`:''}</div>
       </div>
       <div class="fatura-futura-val" style="color:${c.cor}">${fmtBRL(total)}</div>
@@ -2188,6 +2192,52 @@ function selectCartaoCor(cor){
 
 function getCartao(id){return state.cartoes.find(c=>c.id===id);}
 
+// ─── ÍCONE DO CARTÃO POR BANDEIRA/BANCO ─────────────────────────────────────
+// Não reproduzimos os logotipos oficiais de cada banco/bandeira (são marcas
+// registradas de terceiros) — em vez disso, detectamos o banco/bandeira pelo
+// NOME que a própria pessoa deu ao cartão (ex: "AMEX flad", "Nubank Thaís",
+// "Itaú Uniclass") e mostramos um selo colorido com a sigla e as cores que
+// cada marca usa na sua identidade visual. É uma forma segura e reconhecível
+// de diferenciar os cartões sem copiar a arte oficial de ninguém.
+// Se o nome não bater com nenhuma bandeira conhecida, cai no retângulo/💳
+// colorido genérico de sempre (usando a cor escolhida no cadastro do cartão).
+const BANDEIRAS=[
+  {match:['nubank','nu bank','roxinho'],sigla:'nu',bg:'#820AD1',fg:'#ffffff'},
+  {match:['amex','american express'],sigla:'amex',bg:'#006FCF',fg:'#ffffff'},
+  {match:['itau','itaú'],sigla:'itaú',bg:'#EC7000',fg:'#ffffff'},
+  {match:['bradesco'],sigla:'brad',bg:'#CC092F',fg:'#ffffff'},
+  {match:['santander'],sigla:'san',bg:'#EC0000',fg:'#ffffff'},
+  {match:['banco do brasil','bancodobrasil'],sigla:'bb',bg:'#FADB00',fg:'#003087'},
+  {match:['caixa'],sigla:'caixa',bg:'#0070AD',fg:'#F7941D'},
+  {match:['inter'],sigla:'inter',bg:'#FF7A00',fg:'#ffffff'},
+  {match:['c6'],sigla:'c6',bg:'#171717',fg:'#FFDD00'},
+  {match:['picpay'],sigla:'pic',bg:'#21C25E',fg:'#ffffff'},
+  {match:['neon'],sigla:'neon',bg:'#00E28A',fg:'#0B1F3A'},
+  {match:['will bank','willbank'],sigla:'will',bg:'#6C2EB9',fg:'#ffffff'},
+  {match:['mercado pago','mercadopago'],sigla:'mp',bg:'#00B1EA',fg:'#ffffff'},
+  {match:['original'],sigla:'orig',bg:'#00AA4F',fg:'#ffffff'},
+  {match:['xp'],sigla:'xp',bg:'#000000',fg:'#ffffff'},
+  {match:['btg'],sigla:'btg',bg:'#00263A',fg:'#ffffff'},
+  {match:['sicoob'],sigla:'sicoob',bg:'#00995D',fg:'#ffffff'},
+  {match:['sicredi'],sigla:'sicredi',bg:'#6AB52F',fg:'#ffffff'},
+  {match:['visa'],sigla:'visa',bg:'#1A1F71',fg:'#ffffff'},
+  {match:['mastercard','master card'],sigla:'mc',bg:'#EB001B',fg:'#ffffff'},
+  {match:['elo'],sigla:'elo',bg:'#000000',fg:'#FFCB05'},
+];
+
+function detectBandeira(nome){
+  const n=(nome||'').toLowerCase();
+  return BANDEIRAS.find(b=>b.match.some(k=>n.includes(k)))||null;
+}
+
+// Retorna {bg, fg, content, isBandeira} prontos para estilizar qualquer
+// elemento que represente o cartão (ícone de lista, badge, retângulo etc.)
+function cartaoIconInfo(cartao){
+  const b=detectBandeira(cartao?.nome);
+  if(b) return{bg:b.bg,fg:b.fg,content:b.sigla,isBandeira:true};
+  return{bg:(cartao?.cor||'#378ADD')+'22',fg:cartao?.cor||'#378ADD',content:'💳',isBandeira:false};
+}
+
 function addCartao(){
   const nome=document.getElementById('cartao-nome').value.trim();
   const fechamento=parseInt(document.getElementById('cartao-fechamento').value);
@@ -2243,8 +2293,9 @@ function renderCartoesList(){
   if(!state.cartoes.length){list.innerHTML='<div class="empty">Nenhum cartão cadastrado</div>';return;}
   list.innerHTML=state.cartoes.map(c=>{
     const qtdFixos=state.recorrentes.filter(r=>r.cartaoId===c.id).length;
+    const ic=cartaoIconInfo(c);
     return`<div class="rec-item">
-      <div class="tx-icon" style="background:${c.cor}22;color:${c.cor};font-size:14px;">💳</div>
+      <div class="tx-icon" style="background:${ic.bg};color:${ic.fg};font-size:${ic.isBandeira?'11px':'14px'};font-weight:${ic.isBandeira?800:400};text-transform:uppercase;letter-spacing:.2px;">${ic.content}</div>
       <div class="rec-info">
         <div class="rec-name">${c.nome}</div>
         <div class="rec-meta">Fecha dia ${c.fechamento} · Vence dia ${c.vencimento}${qtdFixos?` · ${qtdFixos} fixo(s)`:''}</div>
@@ -3454,12 +3505,12 @@ function renderFaturasVisao(){
       </div>`;
     }).filter(Boolean).join('');
 
-    const corCartao=cartao.cor||'var(--blue)';
+    const icCartao=cartaoIconInfo(cartao);
 
     html+=`<div class="card" style="margin-bottom:14px;">
       <!-- Cabeçalho do cartão -->
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:14px;">
-        <div style="width:36px;height:22px;border-radius:4px;background:${corCartao};"></div>
+        <div style="width:36px;height:22px;border-radius:4px;background:${icCartao.bg};color:${icCartao.fg};display:flex;align-items:center;justify-content:center;font-size:${icCartao.isBandeira?'9px':'16px'};font-weight:800;text-transform:uppercase;flex-shrink:0;">${icCartao.isBandeira?icCartao.content:''}</div>
         <div>
           <div style="font-size:16px;font-weight:700;">${cartao.nome}</div>
           <div style="font-size:11px;color:var(--text3);">Fecha dia ${cartao.fechamento} · Vence dia ${cartao.vencimento}</div>
