@@ -497,7 +497,7 @@
 </div>
 
 <!-- DASHBOARD -->
-<div id="page-dashboard" class="page active" id="dash-swipe">
+<div id="page-dashboard" class="page active">
 
   <!-- CARD ORÇAMENTO DIÁRIO -->
   <div id="budget-card-wrap"></div>
@@ -594,8 +594,8 @@
     <div class="form-group">
       <label>Quem gastou?</label>
       <div class="toggle-btns">
-        <button class="toggle-btn selected" id="pb-p1" onclick="selectPerson('p1')" id="pb-p1"></button>
-        <button class="toggle-btn" id="pb-p2" onclick="selectPerson('p2')" id="pb-p2"></button>
+        <button class="toggle-btn selected" id="pb-p1" onclick="selectPerson('p1')"></button>
+        <button class="toggle-btn" id="pb-p2" onclick="selectPerson('p2')"></button>
         <button class="toggle-btn" id="pb-ambos" onclick="selectPerson('ambos')">Ambos</button>
       </div>
     </div>
@@ -1780,31 +1780,42 @@ function renderDashboard(){
     // Só projeta os variáveis — faturas já são valores conhecidos, não devem
     // ser multiplicadas pelos dias restantes.
     const gastoFixoMes=txs.filter(t=>t.payment==='cartao'||t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
-    const gastoVariavel=txs.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente).reduce((s,t)=>s+t.amount,0);
-    const projVariavel=day>0?Math.round((gastoVariavel/day)*days):0;
-    const proj=gastoFixoMes+projVariavel;
-    banner.style.display='flex';
-    document.getElementById('s-proj-sub').textContent='Projeção: '+fmtBRL(proj);
-    const title=document.getElementById('proj-title');
-    const sub=document.getElementById('proj-sub');
-    const icon=document.getElementById('proj-icon');
-    if(rendaBase>0&&proj>rendaBase*1.1){
-      banner.className='proj-banner danger';icon.textContent='⚠️';
-      title.textContent='Atenção: projeção de '+fmtBRL(proj)+' este mês';
-      sub.textContent='Ultrapassa a renda em '+fmtBRL(proj-rendaBase)+'. Reduzam os gastos.';
-    }else if(rendaBase>0&&proj>rendaBase*0.85){
-      banner.className='proj-banner warn';icon.textContent='📊';
-      title.textContent='Projeção: '+fmtBRL(proj)+' até o fim do mês';
-      sub.textContent='Margem restante: '+fmtBRL(rendaBase-proj)+'. Atenção nos próximos dias.';
+    const txsVariaveis=txs.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente);
+    const gastoVariavel=txsVariaveis.reduce((s,t)=>s+t.amount,0);
+    // Fix 8 (anti-outlier): mesma suavização usada em gerarInsightsProativos —
+    // um gasto pontual grande no início do mês não deve ser extrapolado como
+    // se fosse se repetir todo dia, e o divisor de dias nunca é menor que 7.
+    const maiorGastoVariavel=txsVariaveis.length>1?Math.max(...txsVariaveis.map(t=>t.amount)):0;
+    const variavelEhOutlier=txsVariaveis.length>1&&maiorGastoVariavel>gastoVariavel*0.4;
+    const gastoVariavelRotina=variavelEhOutlier?gastoVariavel-maiorGastoVariavel:gastoVariavel;
+    const dayBase=Math.max(day,7);
+    const projVariavel=dayBase>0?Math.round((gastoVariavelRotina/dayBase)*days):0;
+    const proj=gastoFixoMes+projVariavel+(variavelEhOutlier?maiorGastoVariavel:0);
+    // amostra pequena demais antes do dia 5 para qualquer projeção ser confiável
+    if(day<5){
+      banner.style.display='none';
+      document.getElementById('s-proj-sub').textContent='';
     }else{
-      banner.className='proj-banner ok';icon.textContent='✅';
-      title.textContent='Projeção: '+fmtBRL(proj)+' até o fim do mês';
-      sub.textContent=rendaBase>0?'Sobra estimada: '+fmtBRL(rendaBase-proj):'Média de '+fmtBRL(Math.round(total/day))+'/dia';
+      banner.style.display='flex';
+      document.getElementById('s-proj-sub').textContent='Projeção: '+fmtBRL(proj);
+      const title=document.getElementById('proj-title');
+      const sub=document.getElementById('proj-sub');
+      const icon=document.getElementById('proj-icon');
+      if(rendaBase>0&&proj>rendaBase*1.1){
+        banner.className='proj-banner danger';icon.textContent='⚠️';
+        title.textContent='Atenção: projeção de '+fmtBRL(proj)+' este mês';
+        sub.textContent='Ultrapassa a renda em '+fmtBRL(proj-rendaBase)+'. Reduzam os gastos.';
+      }else if(rendaBase>0&&proj>rendaBase*0.85){
+        banner.className='proj-banner warn';icon.textContent='📊';
+        title.textContent='Projeção: '+fmtBRL(proj)+' até o fim do mês';
+        sub.textContent='Margem restante: '+fmtBRL(rendaBase-proj)+'. Atenção nos próximos dias.';
+      }else{
+        banner.className='proj-banner ok';icon.textContent='✅';
+        title.textContent='Projeção: '+fmtBRL(proj)+' até o fim do mês';
+        sub.textContent=rendaBase>0?'Sobra estimada: '+fmtBRL(rendaBase-proj):'Média de '+fmtBRL(Math.round(total/day))+'/dia';
+      }
     }
   }else{banner.style.display='none';document.getElementById('s-proj-sub').textContent='';}
-
-  renderEvolucaoChart();
-  renderSaldoChart();
 
   // Fixo vs Variável (sobre o fluxo de caixa do mês)
   const totalFixo=txs.filter(t=>t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
@@ -1852,15 +1863,32 @@ function renderDashboard(){
 
   const recent=[...txs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   document.getElementById('recent-list').innerHTML=recent.length?recent.map(txItem).join(''):'<div class="empty">Nenhum lançamento ainda</div>';
+
+  // Bug fix: os gráficos (Chart.js) ficam por último e protegidos por
+  // try/catch. Antes eles rodavam ANTES do card "Próximas faturas por
+  // cartão" e das outras barras/listas — se o Chart.js do CDN ainda não
+  // tivesse carregado (rede lenta, bloqueador, etc.), o erro interrompia
+  // o resto de renderDashboard() e essas seções ficavam em branco até o
+  // usuário visitar outra aba que as recalculasse de forma independente.
+  try{
+    renderEvolucaoChart();
+    renderSaldoChart();
+  }catch(err){
+    console.warn('Não foi possível renderizar os gráficos (Chart.js pode não ter carregado ainda):',err);
+  }
 }
 
 function renderEvolucaoChart(){
+  const canvas=document.getElementById('chart-evolucao');
+  // Se o elemento ainda não existe ou o Chart.js do CDN ainda não carregou,
+  // não quebra a função — apenas não desenha o gráfico desta vez.
+  if(!canvas||typeof Chart==='undefined')return;
   const months=[],now=new Date();
   for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push(d.toISOString().slice(0,7));}
   const labels=months.map(m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleDateString('pt-BR',{month:'short'});});
   const pixData=months.map(m=>Math.round(monthFluxoCaixa(m).filter(t=>t.payment==='pix').reduce((s,t)=>s+t.amount,0)));
   const cartaoData=months.map(m=>Math.round(monthFluxoCaixa(m).filter(t=>t.payment==='cartao').reduce((s,t)=>s+t.amount,0)));
-  const ctx=document.getElementById('chart-evolucao').getContext('2d');
+  const ctx=canvas.getContext('2d');
   if(evolChart)evolChart.destroy();
   evolChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[
     {label:'Pix',data:pixData,backgroundColor:'#1D9E75',borderRadius:4,borderSkipped:false},
@@ -1908,7 +1936,7 @@ function renderFaturasCartoesCard(){
 // Gráfico de evolução do saldo: receita − despesa (fluxo de caixa) por mês
 function renderSaldoChart(){
   const ctx=document.getElementById('chart-saldo');
-  if(!ctx)return;
+  if(!ctx||typeof Chart==='undefined')return;
   const months=[],now=new Date();
   for(let i=5;i>=0;i--){const d=new Date(now.getFullYear(),now.getMonth()-i,1);months.push(d.toISOString().slice(0,7));}
   const labels=months.map(m=>{const[y,mo]=m.split('-').map(Number);return new Date(y,mo-1,1).toLocaleDateString('pt-BR',{month:'short'});});
@@ -2658,9 +2686,6 @@ function renderAnalises(){
   const diasNomes=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
   const diasTotais=[0,0,0,0,0,0,0];
   state.transactions.forEach(t=>{const d=new Date(t.date+'T12:00');diasTotais[d.getDay()]+=t.amount;});
-  const ctxD=document.getElementById('chart-diasemana').getContext('2d');
-  if(diasChart)diasChart.destroy();
-  diasChart=new Chart(ctxD,{type:'bar',data:{labels:diasNomes,datasets:[{data:diasTotais,backgroundColor:diasTotais.map((_,i)=>i===0||i===6?'#E24B4A':'#1D9E75'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' R$ '+c.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2})}}},scales:{x:{grid:{display:false},ticks:{font:{size:12}}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{size:11},callback:v=>'R$'+(v/1000).toFixed(0)+'k'}}}}});
 
   // Comparativo por categoria — últimos 3 meses
   const now=new Date();
@@ -2707,6 +2732,19 @@ function renderAnalises(){
       <div class="stat-value">${fmtBRL(avg)}</div>
     </div>`;
   }).join('')||'<div class="empty">Sem dados suficientes</div>';
+
+  // Bug fix: gráfico por último e protegido — se o Chart.js do CDN ainda não
+  // carregou, não deve impedir o "Comparativo por categoria" e o "Ticket
+  // médio" (que vêm depois dele no código) de aparecerem.
+  try{
+    const ctxD=document.getElementById('chart-diasemana');
+    if(ctxD&&typeof Chart!=='undefined'){
+      if(diasChart)diasChart.destroy();
+      diasChart=new Chart(ctxD.getContext('2d'),{type:'bar',data:{labels:diasNomes,datasets:[{data:diasTotais,backgroundColor:diasTotais.map((_,i)=>i===0||i===6?'#E24B4A':'#1D9E75'),borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>' R$ '+c.parsed.y.toLocaleString('pt-BR',{minimumFractionDigits:2})}}},scales:{x:{grid:{display:false},ticks:{font:{size:12}}},y:{grid:{color:'rgba(0,0,0,.05)'},ticks:{font:{size:11},callback:v=>'R$'+(v/1000).toFixed(0)+'k'}}}}});
+    }
+  }catch(err){
+    console.warn('Não foi possível renderizar o gráfico de dia da semana:',err);
+  }
 }
 
 // ─── RECORRENTES ───────────────────────────────────────────────────────────
@@ -2969,11 +3007,48 @@ function removeLoading(){document.querySelectorAll('[data-loading]').forEach(e=>
 // ─── SERVICE WORKER (PWA offline) ──────────────────────────────────────────
 function registerSW(){
   if(!('serviceWorker' in navigator))return;
+  // Cacheia a URL REAL da própria página (não um '/' fixo, que pode não
+  // corresponder ao caminho onde o app está hospedado).
+  const pageUrl=location.href.split('#')[0];
   const swCode=`
-const CACHE='nos-dois-v1';
-const ASSETS=['/'];
-self.addEventListener('install',e=>e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS))));
-self.addEventListener('fetch',e=>e.respondWith(caches.match(e.request).then(r=>r||fetch(e.request).catch(()=>caches.match('/')))));
+const CACHE='nos-dois-v2';
+const SHELL_URL=${JSON.stringify(pageUrl)};
+const ASSETS=[SHELL_URL];
+
+self.addEventListener('install',e=>{
+  self.skipWaiting();
+  e.waitUntil(caches.open(CACHE).then(c=>c.addAll(ASSETS)).catch(()=>{}));
+});
+
+self.addEventListener('activate',e=>{
+  e.waitUntil(
+    caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
+      .then(()=>self.clients.claim())
+  );
+});
+
+// Estratégia: cache-first para resposta instantânea (offline-first), mas
+// atualiza o cache em segundo plano a cada requisição bem-sucedida
+// (stale-while-revalidate). Só grava no cache respostas do MESMO ORIGIN
+// (o shell do próprio app) — CDNs externos (fontes, Chart.js) não entram
+// no cache porque respostas opacas/cross-origin quebrariam o addAll do
+// install e não podem ser reaproveitadas com segurança offline.
+self.addEventListener('fetch',e=>{
+  if(e.request.method!=='GET')return;
+  e.respondWith(
+    caches.match(e.request).then(cached=>{
+      const network=fetch(e.request).then(res=>{
+        if(res&&res.status===200&&e.request.url.startsWith(self.location.origin)){
+          const clone=res.clone();
+          caches.open(CACHE).then(c=>c.put(e.request,clone));
+        }
+        return res;
+      }).catch(()=>cached||caches.match(SHELL_URL));
+      return cached||network;
+    })
+  );
+});
+
 self.addEventListener('push',e=>{const d=e.data?e.data.json():{};self.registration.showNotification(d.title||'Nós dois',{body:d.body||'',icon:d.icon||'',badge:d.icon||''});});
 `;
   const blob=new Blob([swCode],{type:'application/javascript'});
@@ -3807,9 +3882,29 @@ async function gerarInsightsProativos(){
     // Fix 5: mesma lógica do dashboard — fixos/faturas entram pelo valor real,
     // só os variáveis são projetados pelos dias restantes
     const fixosMes=txsFluxo.filter(t=>t.payment==='cartao'||t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
-    const varMes=txsFluxo.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente).reduce((s,t)=>s+t.amount,0);
-    const proj=fixosMes+(dia>0?Math.round(varMes/dia*dias):0);
-    if(proj>rendaBaseInsight*1.05) insights.push({type:'danger',text:`Projeção de ${fmtBRL(proj)} de saída do bolso este mês ultrapassa a renda (${fmtBRL(rendaBaseInsight)}). Reduzam os gastos.`});
+    const varTxs=txsFluxo.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente);
+    const varMes=varTxs.reduce((s,t)=>s+t.amount,0);
+
+    // Fix 8 (anti-outlier): uma projeção linear ingênua (total até hoje ÷ dias
+    // já passados × dias do mês) é muito sensível a UM gasto pontual grande
+    // logo no início do mês — ele acaba sendo extrapolado como se fosse se
+    // repetir todo dia. Para evitar isso:
+    //  (a) se o maior gasto variável isolado responder por mais de 40% do
+    //      total variável (e houver mais de um lançamento), ele é tratado
+    //      como "gasto pontual" e entra na projeção pelo valor REAL (uma
+    //      vez só), em vez de ser projetado como recorrente;
+    //  (b) o divisor de dias nunca é menor que 7, suavizando a projeção nos
+    //      primeiros dias do mês, quando a amostra ainda é pequena.
+    const maiorGastoVar=varTxs.length>1?Math.max(...varTxs.map(t=>t.amount)):0;
+    const ehOutlier=varTxs.length>1&&maiorGastoVar>varMes*0.4;
+    const varRotina=ehOutlier?varMes-maiorGastoVar:varMes;
+    const diaBase=Math.max(dia,7);
+    const projRotina=diaBase>0?Math.round(varRotina/diaBase*dias):0;
+    const proj=fixosMes+projRotina+(ehOutlier?maiorGastoVar:0);
+
+    // só emite o alerta a partir do dia 5 do mês: antes disso a amostra é
+    // pequena demais para qualquer projeção ser confiável
+    if(dia>=5&&proj>rendaBaseInsight*1.05) insights.push({type:'danger',text:`Projeção de ${fmtBRL(proj)} de saída do bolso este mês ultrapassa a renda (${fmtBRL(rendaBaseInsight)}). Reduzam os gastos.`});
   }
 
   if(!insights.length){wrap.innerHTML='';return;}
