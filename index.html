@@ -3,30 +3,28 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>GP - Gaste&amp;Poupe</title>
+<title>Nós dois — Finanças</title>
 
 <!-- PWA -->
-<meta name="theme-color" content="#007a58" id="meta-theme-color">
+<meta name="theme-color" content="#007a58">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="GP - Gaste&amp;Poupe">
+<meta name="apple-mobile-web-app-title" content="Nós dois">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="description" content="Controle financeiro pessoal">
+<meta name="description" content="Controle financeiro do casal">
 
 <!-- PWA manifest inline via JS (não precisa de servidor) -->
 <script>
 (function(){
-  const accent = localStorage.getItem('app-accent-color') || '#007a58';
-  const iconSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='${accent}'/><text x='96' y='120' font-size='72' font-weight='800' text-anchor='middle' font-family='system-ui' fill='white'>GP</text></svg>`;
-  const icon = "data:image/svg+xml," + encodeURIComponent(iconSvg);
+  const icon = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='40' fill='%23007a58'/><text x='96' y='130' font-size='100' text-anchor='middle' font-family='system-ui'>💰</text></svg>`);
   const manifest = {
-    name: "GP - Gaste&Poupe",
-    short_name: "GP",
-    description: "Controle financeiro pessoal",
+    name: "Nós dois — Finanças",
+    short_name: "Nós dois",
+    description: "Controle financeiro do casal",
     start_url: ".",
     display: "standalone",
     background_color: "#f7f7f5",
-    theme_color: accent,
+    theme_color: "#007a58",
     orientation: "portrait",
     icons: [
       { src: icon, sizes: "192x192", type: "image/svg+xml", purpose: "any maskable" },
@@ -38,18 +36,11 @@
   const link = document.createElement('link');
   link.rel = 'manifest'; link.href = url;
   document.head.appendChild(link);
-  document.getElementById('meta-theme-color')?.setAttribute('content', accent);
-  const appleIcon = document.getElementById('apple-touch-icon');
-  if(appleIcon){
-    const appleSvg = `<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='${accent}'/><text x='90' y='113' font-size='68' font-weight='800' text-anchor='middle' font-family='system-ui' fill='white'>GP</text></svg>`;
-    appleIcon.href = "data:image/svg+xml," + encodeURIComponent(appleSvg);
-  }
 })();
 </script>
 
-<!-- Apple touch icon inline (atualizado por JS acima com a cor escolhida) -->
-<link rel="apple-touch-icon" id="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23007a58'/%3E%3Ctext x='90' y='113' font-size='68' font-weight='800' text-anchor='middle' font-family='system-ui' fill='white'%3EGP%3C/text%3E%3C/svg%3E">
-
+<!-- Apple touch icon inline -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23007a58'/%3E%3Ctext x='90' y='125' font-size='95' text-anchor='middle' font-family='system-ui'%3E%F0%9F%92%B0%3C/text%3E%3C/svg%3E">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -127,7 +118,7 @@
 
   /* ── TOPBAR ─────────────────────────────────────────────────────────── */
   .topbar{background:var(--surface);border-bottom:none;box-shadow:var(--shadow);padding:0 18px;display:flex;align-items:center;justify-content:space-between;height:var(--top-h);position:sticky;top:0;z-index:100;backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);}
-  .topbar-logo{font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--teal),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;}
+  .topbar-logo{font-size:16px;font-weight:800;background:linear-gradient(135deg,var(--teal),var(--blue));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;letter-spacing:-.3px;}
   .topbar-month{display:flex;align-items:center;gap:4px;background:var(--surface2);border-radius:99px;padding:4px 6px 4px 12px;}
   .topbar-month button{background:var(--bg);border:none;width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text2);font-size:12px;transition:all .15s;}
   .topbar-month button:active{background:var(--teal-light);color:var(--teal);}
@@ -225,10 +216,6 @@
   .cat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
   .cat-btn{padding:11px 4px;border:1.5px solid var(--border);border-radius:var(--radius-sm);background:var(--surface2);font-size:12px;font-weight:600;cursor:pointer;text-align:center;transition:all .2s;color:var(--text2);}
   .cat-btn.selected{border-color:var(--teal);background:var(--teal-light);color:var(--teal-dark);}
-  .color-swatch{width:36px;height:36px;border-radius:50%;border:2.5px solid transparent;cursor:pointer;padding:0;position:relative;transition:transform .15s;}
-  .color-swatch:active{transform:scale(.92);}
-  .color-swatch.selected{border-color:var(--text);box-shadow:0 0 0 2px var(--surface),0 0 0 4px var(--text);}
-  .color-swatch.selected::after{content:'✓';position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:white;font-size:14px;font-weight:800;text-shadow:0 1px 2px rgba(0,0,0,.3);}
   .btn-primary{width:100%;padding:15px;background:linear-gradient(135deg,var(--teal),var(--teal-dark));color:white;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.2px;box-shadow:0 4px 14px rgba(0,196,140,.3);transition:opacity .15s,transform .1s;}
   .btn-primary:active{opacity:.9;transform:scale(.99);}
   .btn-sm{padding:9px 16px;background:var(--teal);color:white;border:none;border-radius:var(--radius-sm);font-size:13px;font-weight:700;cursor:pointer;white-space:nowrap;box-shadow:0 2px 8px rgba(0,196,140,.25);}
@@ -480,7 +467,7 @@
 <body>
 
 <div class="topbar">
-  <span class="topbar-logo">GP · Gaste&amp;Poupe</span>
+  <span class="topbar-logo">💰 Nós dois</span>
   <div style="display:flex;align-items:center;gap:8px;">
     <button class="theme-btn" id="theme-btn" onclick="toggleTheme()" title="Alternar tema">🌙</button>
     <div class="topbar-month">
@@ -518,18 +505,23 @@
   <!-- IA PROATIVA -->
   <div id="ia-insights-wrap"></div>
 
+  <div id="proj-banner" class="proj-banner ok" style="display:none">
+    <div class="proj-icon" id="proj-icon">📊</div>
+    <div class="proj-text"><strong id="proj-title"></strong><span id="proj-sub"></span></div>
+  </div>
   <div class="summary-grid">
-    <div class="summary-card"><div class="summary-label">Total gasto</div><div class="summary-value red" id="s-total">R$ 0</div></div>
+    <div class="summary-card"><div class="summary-label">Total gasto</div><div class="summary-value red" id="s-total">R$ 0</div><div class="summary-sub" id="s-proj-sub"></div></div>
     <div class="summary-card"><div class="summary-label">Saldo estimado</div><div class="summary-value green" id="s-saldo">R$ 0</div><div class="summary-sub" id="s-renda-sub"></div></div>
     <div class="summary-card"><div class="summary-label">Via Pix</div><div class="summary-value" id="s-pix" style="color:var(--teal)">R$ 0</div></div>
     <div class="summary-card"><div class="summary-label">Via Cartão</div><div class="summary-value" id="s-cartao" style="color:var(--blue)">R$ 0</div></div>
   </div>
-  <div class="card" id="orcamento-cat-card">
-    <div class="card-title" style="display:flex;align-items:center;justify-content:space-between;">
-      <span>Orçamento por categoria</span>
-      <span style="text-transform:none;letter-spacing:0;font-weight:600;cursor:pointer;color:var(--teal);font-size:12px;" onclick="showPage('metas')">+ definir</span>
-    </div>
-    <div id="orcamento-cat-bars"></div>
+  <div class="card">
+    <div class="card-title">Saldo mensal — receita vs despesa</div>
+    <div class="chart-wrap-saldo"><canvas id="chart-saldo"></canvas></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Pix vs Cartão — últimos 6 meses</div>
+    <div class="chart-wrap"><canvas id="chart-evolucao"></canvas></div>
   </div>
   <div class="card">
     <div class="card-title">Fixos vs Variáveis</div>
@@ -542,6 +534,10 @@
   <div class="card">
     <div class="card-title">Gastos por categoria</div>
     <div id="cat-bars"></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Por pessoa</div>
+    <div id="person-bars"></div>
   </div>
   <div class="card">
     <div class="card-title">Últimos lançamentos</div>
@@ -593,6 +589,14 @@
       <div class="autocomplete-wrap">
         <input type="text" id="f-desc" placeholder="Ex: Mercado, Farmácia..." autocomplete="off" oninput="showSuggestions()" onblur="hideSuggestions()">
         <div class="autocomplete-list" id="autocomplete-list" style="display:none"></div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Quem gastou?</label>
+      <div class="toggle-btns">
+        <button class="toggle-btn selected" id="pb-p1" onclick="selectPerson('p1')"></button>
+        <button class="toggle-btn" id="pb-p2" onclick="selectPerson('p2')"></button>
+        <button class="toggle-btn" id="pb-ambos" onclick="selectPerson('ambos')">Ambos</button>
       </div>
     </div>
     <div class="form-group">
@@ -659,6 +663,7 @@
   </div>
   <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap;">
     <select id="filter-periodo" onchange="buildPeriodoOptions();renderHistory()" style="flex:1;min-width:110px;font-size:13px;"></select>
+    <select id="filter-person" onchange="renderHistory()" style="flex:1;min-width:80px;font-size:13px;"></select>
   </div>
   <div style="display:flex;gap:8px;margin-bottom:10px;">
     <select id="filter-cat" onchange="renderHistory()" style="flex:1;font-size:13px;"></select>
@@ -738,10 +743,15 @@
     <div class="card-title">Comparativo por categoria — últimos 3 meses</div>
     <div id="cat-comparativo"></div>
   </div>
+  <div class="card">
+    <div class="card-title">Ticket médio por forma de pagamento</div>
+    <div id="ticket-medio"></div>
+  </div>
 </div>
 
 <!-- METAS -->
 <div id="page-metas" class="page">
+  <button class="btn-outline" style="margin-bottom:12px;font-size:13px;padding:8px 14px;" onclick="showPage('config')">← Voltar para Config</button>
   <div class="card" style="margin-bottom:12px;">
     <div class="card-title" style="margin-bottom:4px;">Renda fixa de <span id="renda-mes-label">—</span></div>
     <div style="font-size:12px;color:var(--text3);margin-bottom:10px;">Usada como fallback apenas quando não há receitas cadastradas neste mês.</div>
@@ -799,20 +809,27 @@
 
 <!-- CONFIG -->
 <div id="page-config" class="page">
-
-  <div class="card" style="cursor:pointer;" onclick="showPage('metas')">
-    <div class="card-title" style="margin-bottom:4px;">🎯 Renda e limites por categoria</div>
-    <div style="font-size:12px;color:var(--text3);">Defina sua renda mensal e quanto pode gastar em cada categoria →</div>
+  <div class="card" style="background:linear-gradient(135deg,var(--teal),var(--blue));border:none;">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;">
+      <div>
+        <div style="font-size:15px;font-weight:800;color:#fff;">🎯 Metas e Reservas</div>
+        <div style="font-size:12px;color:rgba(255,255,255,.85);margin-top:2px;">Limites por categoria e reservas de poupança</div>
+      </div>
+      <button class="btn-sm" style="background:rgba(255,255,255,.2);color:#fff;border:none;flex-shrink:0;" onclick="showPage('metas')">Abrir →</button>
+    </div>
   </div>
 
-  <div class="card">
-    <div class="card-title" style="margin-bottom:10px;">🎨 Aparência</div>
-    <div style="font-size:12px;color:var(--text3);margin-bottom:12px;">Escolha a cor principal do app (botões, destaques e ícone).</div>
-    <div id="color-swatches" style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;"></div>
-    <div style="display:flex;align-items:center;gap:10px;">
-      <input type="color" id="accent-color-picker" value="#00c48c" onchange="onAccentColorInput()" oninput="onAccentColorInput()" style="width:44px;height:36px;border:none;border-radius:8px;padding:0;background:none;cursor:pointer;">
-      <span style="font-size:12px;color:var(--text3);">ou escolha uma cor personalizada</span>
+  <div class="card" style="margin-top:12px;">
+    <div class="card-title" style="margin-bottom:12px;">Nomes do casal</div>
+    <div class="form-group">
+      <label>Pessoa 1</label>
+      <input type="text" id="cfg-p1" placeholder="Nome da pessoa 1">
     </div>
+    <div class="form-group">
+      <label>Pessoa 2</label>
+      <input type="text" id="cfg-p2" placeholder="Nome da pessoa 2">
+    </div>
+    <button class="btn-primary" onclick="saveConfig()">Salvar nomes</button>
   </div>
 
   <div class="card" style="margin-top:12px;">
@@ -983,6 +1000,14 @@
       <input type="text" id="ri-desc" placeholder="Ex: Salário, Freelance, Aluguel recebido…">
     </div>
     <div class="form-group">
+      <label>De quem?</label>
+      <div class="toggle-btns">
+        <button class="toggle-btn selected" id="ri-p1" onclick="selectReceitaPerson('p1')"></button>
+        <button class="toggle-btn" id="ri-p2" onclick="selectReceitaPerson('p2')"></button>
+        <button class="toggle-btn" id="ri-ambos" onclick="selectReceitaPerson('ambos')">Ambos</button>
+      </div>
+    </div>
+    <div class="form-group">
       <label>Categoria</label>
       <div class="toggle-btns" style="flex-wrap:wrap;gap:6px;" id="ri-cat-btns">
         <button class="toggle-btn selected" data-cat="salario" onclick="selectReceitaCat('salario')">💼 Salário</button>
@@ -1027,6 +1052,10 @@
     <div class="modal-title">Editar lançamento <button class="modal-close" onclick="closeModal()">✕</button></div>
     <div class="form-group"><label>Valor (R$)</label><input type="number" id="edit-valor" inputmode="decimal" step="0.01"></div>
     <div class="form-group"><label>Descrição</label><input type="text" id="edit-desc"></div>
+    <div class="form-group">
+      <label>Quem gastou?</label>
+      <div class="toggle-btns" id="edit-person-btns"></div>
+    </div>
     <div class="form-group">
       <label>Pagamento</label>
       <div class="toggle-btns">
@@ -1430,6 +1459,7 @@ function showPage(id,btn){
   if(id==='receitas')renderReceitas();
   if(id==='add'){
     document.getElementById('f-data').value=new Date().toISOString().slice(0,10);
+    updatePersonBtns();
     setTimeout(()=>document.getElementById('f-valor').focus(),100);
   }
 }
@@ -1604,6 +1634,10 @@ function renderReceitas(){
   const lbl=document.getElementById('ri-mes-label');
   if(lbl)lbl.textContent=document.getElementById('month-label').textContent;
 
+  // botões de pessoa com nomes
+  const bp1=document.getElementById('ri-p1');const bp2=document.getElementById('ri-p2');
+  if(bp1)bp1.textContent=p1();if(bp2)bp2.textContent=p2();
+
   // preenche data padrão
   const riData=document.getElementById('ri-data');
   if(riData&&!riData.value)riData.value=new Date().toISOString().slice(0,10);
@@ -1625,12 +1659,13 @@ function renderReceitas(){
   const riList=document.getElementById('ri-list');
   riList.innerHTML=recs.length?recs.map(r=>{
     const cat=CAT_RECEITA[r.cat]||CAT_RECEITA.outros;
+    const personLabel=r.person==='p1'?p1():r.person==='p2'?p2():'Ambos';
     const d=r.date.split('-');
     return`<div class="tx-item">
       <div class="tx-icon" style="background:${cat.color}22">${cat.label.split(' ')[0]}</div>
       <div class="tx-info">
         <div class="tx-desc">${r.desc}</div>
-        <div class="tx-meta">${d[2]}/${d[1]} · ${cat.label.split(' ').slice(1).join(' ')}</div>
+        <div class="tx-meta">${d[2]}/${d[1]} · ${personLabel} · ${cat.label.split(' ').slice(1).join(' ')}</div>
       </div>
       <div class="tx-amount" style="color:var(--teal)">${fmtBRL(r.amount)}</div>
       <div class="tx-actions"><button class="tx-btn" onclick="deleteReceita('${r.id}')">✕</button></div>
@@ -1644,9 +1679,10 @@ function renderReceitas(){
     rfCard.style.display='block';
     rfList.innerHTML=state.receitasFixas.map(rf=>{
       const cat=CAT_RECEITA[rf.cat]||CAT_RECEITA.outros;
+      const personLabel=rf.person==='p1'?p1():rf.person==='p2'?p2():'Ambos';
       return`<div class="rec-item">
         <div class="tx-icon" style="background:${cat.color}22">${cat.label.split(' ')[0]}</div>
-        <div class="rec-info"><div class="rec-name">${rf.desc}</div><div class="rec-meta">Dia ${rf.dia}</div></div>
+        <div class="rec-info"><div class="rec-name">${rf.desc}</div><div class="rec-meta">Dia ${rf.dia} · ${personLabel}</div></div>
         <div class="rec-amount" style="color:var(--teal)">${fmtBRL(rf.amount)}</div>
         <button class="rec-delete" onclick="deleteReceitaFixa('${rf.id}')">✕</button>
       </div>`;
@@ -1785,6 +1821,55 @@ function renderDashboard(){
     document.getElementById('s-renda-sub').textContent='Defina a renda em Metas ou cadastre receitas';
   }
 
+  // Projeção
+  const now=new Date();
+  const isCurrent=state.currentMonth===now.toISOString().slice(0,7);
+  const banner=document.getElementById('proj-banner');
+  if(isCurrent&&txs.length>0){
+    const day=now.getDate();
+    const days=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    // Separa gastos que são "fixos do mês" (faturas de cartão + recorrentes)
+    // dos gastos variáveis diários (pix/dinheiro não-recorrentes).
+    // Só projeta os variáveis — faturas já são valores conhecidos, não devem
+    // ser multiplicadas pelos dias restantes.
+    const gastoFixoMes=txs.filter(t=>t.payment==='cartao'||t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
+    const txsVariaveis=txs.filter(t=>t.payment!=='cartao'&&!t.isFixo&&!t.recorrente);
+    const gastoVariavel=txsVariaveis.reduce((s,t)=>s+t.amount,0);
+    // Fix 8 (anti-outlier): mesma suavização usada em gerarInsightsProativos —
+    // um gasto pontual grande no início do mês não deve ser extrapolado como
+    // se fosse se repetir todo dia, e o divisor de dias nunca é menor que 7.
+    const maiorGastoVariavel=txsVariaveis.length>1?Math.max(...txsVariaveis.map(t=>t.amount)):0;
+    const variavelEhOutlier=txsVariaveis.length>1&&maiorGastoVariavel>gastoVariavel*0.4;
+    const gastoVariavelRotina=variavelEhOutlier?gastoVariavel-maiorGastoVariavel:gastoVariavel;
+    const dayBase=Math.max(day,7);
+    const projVariavel=dayBase>0?Math.round((gastoVariavelRotina/dayBase)*days):0;
+    const proj=gastoFixoMes+projVariavel+(variavelEhOutlier?maiorGastoVariavel:0);
+    // amostra pequena demais antes do dia 5 para qualquer projeção ser confiável
+    if(day<5){
+      banner.style.display='none';
+      document.getElementById('s-proj-sub').textContent='';
+    }else{
+      banner.style.display='flex';
+      document.getElementById('s-proj-sub').textContent='Projeção: '+fmtBRL(proj);
+      const title=document.getElementById('proj-title');
+      const sub=document.getElementById('proj-sub');
+      const icon=document.getElementById('proj-icon');
+      if(rendaBase>0&&proj>rendaBase*1.1){
+        banner.className='proj-banner danger';icon.textContent='⚠️';
+        title.textContent='Atenção: projeção de '+fmtBRL(proj)+' este mês';
+        sub.textContent='Ultrapassa a renda em '+fmtBRL(proj-rendaBase)+'. Reduzam os gastos.';
+      }else if(rendaBase>0&&proj>rendaBase*0.85){
+        banner.className='proj-banner warn';icon.textContent='📊';
+        title.textContent='Projeção: '+fmtBRL(proj)+' até o fim do mês';
+        sub.textContent='Margem restante: '+fmtBRL(rendaBase-proj)+'. Atenção nos próximos dias.';
+      }else{
+        banner.className='proj-banner ok';icon.textContent='✅';
+        title.textContent='Projeção: '+fmtBRL(proj)+' até o fim do mês';
+        sub.textContent=rendaBase>0?'Sobra estimada: '+fmtBRL(rendaBase-proj):'Média de '+fmtBRL(Math.round(total/day))+'/dia';
+      }
+    }
+  }else{banner.style.display='none';document.getElementById('s-proj-sub').textContent='';}
+
   // Fixo vs Variável (sobre o fluxo de caixa do mês)
   const totalFixo=txs.filter(t=>t.isFixo||t.recorrente).reduce((s,t)=>s+t.amount,0);
   const totalVariavel=total-totalFixo;
@@ -1817,36 +1902,34 @@ function renderDashboard(){
       <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${over?'var(--red)':c.color}"></div></div></div>`;
   }).join('')||'<div class="empty">Nenhum gasto registrado</div>';
 
-  // Orçamento por categoria — usa os limites definidos em Metas (state.metas).
-  // Mostra, para cada categoria com limite, quanto já foi gasto e quanto
-  // ainda resta, com cor que muda conforme se aproxima do limite.
-  const orcCard=document.getElementById('orcamento-cat-bars');
-  if(state.metas.length){
-    orcCard.innerHTML=state.metas.map(m=>{
-      const c=getCat(m.cat);
-      const gasto=catTotals[m.cat]||0;
-      const restante=m.value-gasto;
-      const pct=m.value>0?Math.min(Math.round(gasto/m.value*100),100):0;
-      let cor='var(--teal)',status='ok';
-      if(pct>=100){cor='var(--red)';status='estourou';}
-      else if(pct>=80){cor='var(--red)';status='perto';}
-      else if(pct>=60){cor='var(--amber)';status='atencao';}
-      const restanteTxt=restante>=0?`Restam ${fmtBRL(restante)}`:`Excedeu em ${fmtBRL(Math.abs(restante))}`;
-      return`<div class="progress-wrap">
-        <div class="progress-header"><span>${c?c.label:m.cat}</span>
-        <span style="font-weight:600;color:${cor}">${restanteTxt}</span></div>
-        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${cor}"></div></div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;">${fmtBRL(gasto)} de ${fmtBRL(m.value)} (${pct}%)</div>
-      </div>`;
-    }).join('');
-  }else{
-    orcCard.innerHTML='<div class="empty">Nenhum limite definido ainda. <span style="color:var(--teal);cursor:pointer;font-weight:600;" onclick="showPage(\'metas\')">Definir agora →</span></div>';
-  }
+  // Person bars
+  const eu=txs.filter(t=>t.person==='p1').reduce((s,t)=>s+t.amount,0);
+  const conj=txs.filter(t=>t.person==='p2').reduce((s,t)=>s+t.amount,0);
+  const ambos=txs.filter(t=>t.person==='ambos').reduce((s,t)=>s+t.amount,0);
+  const maxP=Math.max(eu,conj,ambos,1);
+  document.getElementById('person-bars').innerHTML=
+    [{label:p1(),val:eu,color:'#1D9E75'},{label:p2(),val:conj,color:'#378ADD'},{label:'Ambos',val:ambos,color:'#BA7517'}]
+    .filter(p=>p.val>0).map(p=>`<div class="progress-wrap">
+      <div class="progress-header"><span>${p.label}</span><span style="font-weight:600">${fmtBRL(p.val)}</span></div>
+      <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(p.val/maxP*100)}%;background:${p.color}"></div></div></div>`
+    ).join('')||'<div class="empty">Nenhum gasto registrado</div>';
 
   const recent=[...txs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   document.getElementById('recent-list').innerHTML=recent.length?recent.map(txItem).join(''):'<div class="empty">Nenhum lançamento ainda</div>';
-}
 
+  // Bug fix: os gráficos (Chart.js) ficam por último e protegidos por
+  // try/catch. Antes eles rodavam ANTES do card "Próximas faturas por
+  // cartão" e das outras barras/listas — se o Chart.js do CDN ainda não
+  // tivesse carregado (rede lenta, bloqueador, etc.), o erro interrompia
+  // o resto de renderDashboard() e essas seções ficavam em branco até o
+  // usuário visitar outra aba que as recalculasse de forma independente.
+  try{
+    renderEvolucaoChart();
+    renderSaldoChart();
+  }catch(err){
+    console.warn('Não foi possível renderizar os gráficos (Chart.js pode não ter carregado ainda):',err);
+  }
+}
 
 function renderEvolucaoChart(){
   const canvas=document.getElementById('chart-evolucao');
@@ -1939,6 +2022,7 @@ function txItem(t,compact=false){
   const cat=getCat(t.cat);
   const payBadge=t.payment==='pix'?'badge-pix':t.payment==='cartao'?'badge-cartao':'badge-dinheiro';
   const payLabel=t.payment==='pix'?'Pix':t.payment==='cartao'?'Cartão':'Dinheiro';
+  const personLabel=t.person==='p1'?p1():t.person==='p2'?p2():'Ambos';
   const d=t.date.split('-');
   const isFixo=t.isFixo||t.recorrente;
   const fixoBadge=isFixo?'<span class="badge badge-rec">🔁 Fixo</span>':'';
@@ -1952,7 +2036,7 @@ function txItem(t,compact=false){
     <div class="tx-icon" style="background:${cat.color}22;${compact?'width:28px;height:28px;font-size:13px;':''}">${cat.label.split(' ')[0]}</div>
     <div class="tx-info">
       <div class="tx-desc" style="${compact?'font-size:13px;':''}">${t.desc}</div>
-      ${!compact?`<div class="tx-meta">${d[2]}/${d[1]} · <span class="badge ${payBadge}">${payLabel}</span>${fixoBadge}${parcelaBadge}${faturaBadge}${cartaoBadge}${tagsBadge}</div>`:''}
+      ${!compact?`<div class="tx-meta">${d[2]}/${d[1]} · ${personLabel} · <span class="badge ${payBadge}">${payLabel}</span>${fixoBadge}${parcelaBadge}${faturaBadge}${cartaoBadge}${tagsBadge}</div>`:''}
     </div>
     <div class="tx-amount" style="${compact?'font-size:13px;':''}">${fmtBRL(t.amount)}</div>
     ${!compact?`<div class="tx-actions">
@@ -1966,6 +2050,7 @@ function txItem(t,compact=false){
 
 function renderHistory(){
   updateMonthLabel();
+  const fp=document.getElementById('filter-person').value;
   const fc=document.getElementById('filter-cat').value;
   const fpa=document.getElementById('filter-pay').value;
   const fperiodo=document.getElementById('filter-periodo').value;
@@ -1978,6 +2063,7 @@ function renderHistory(){
   else if(fperiodo) txs=state.transactions.filter(t=>t.date.startsWith(fperiodo));
   else txs=monthTx();
 
+  if(fp) txs=txs.filter(t=>t.person===fp);
   if(fc) txs=txs.filter(t=>t.cat===fc);
   if(fpa) txs=txs.filter(t=>t.payment===fpa);
   if(ftipo==='fixo') txs=txs.filter(t=>t.isFixo||t.recorrente);
@@ -2024,8 +2110,22 @@ function renderHistory(){
   document.getElementById('tx-list').innerHTML=html;
 }
 
-// ─── PAGAMENTO ──────────────────────────────────────────────────────────
-function selectPerson(p){selPerson=p||'ambos';}
+// ─── PESSOA / PAGAMENTO ────────────────────────────────────────────────────
+function updatePersonBtns(){
+  const b1=document.getElementById('pb-p1');
+  const b2=document.getElementById('pb-p2');
+  if(b1)b1.textContent=p1();
+  if(b2)b2.textContent=p2();
+  // botões da tela receitas
+  const ri1=document.getElementById('ri-p1');
+  const ri2=document.getElementById('ri-p2');
+  if(ri1)ri1.textContent=p1();
+  if(ri2)ri2.textContent=p2();
+}
+function selectPerson(p){
+  selPerson=p;
+  ['p1','p2','ambos'].forEach(x=>{const el=document.getElementById('pb-'+x);if(el)el.classList.toggle('selected',x===p);});
+}
 function selectPayment(p){
   selPay=p;
   ['pix','cartao','dinheiro'].forEach(x=>document.getElementById('pm-'+x).classList.toggle('selected',x===p));
@@ -2060,6 +2160,9 @@ function buildCatFilters(){
     el.innerHTML=(first?`<option value="">${first}</option>`:'')+getAllCats().map(c=>`<option value="${c.id}">${c.label}</option>`).join('');
     el.value=cur;
   });
+  // filter-person com nomes
+  const fp=document.getElementById('filter-person');
+  if(fp){const cur=fp.value;fp.innerHTML=`<option value="">Todos</option><option value="p1">${p1()}</option><option value="p2">${p2()}</option><option value="ambos">Ambos</option>`;fp.value=cur;}
 }
 
 // ─── PARCELAMENTO ──────────────────────────────────────────────────────────
@@ -2439,16 +2542,12 @@ function checkAlerts(tx){
   const meta=state.metas.find(m=>m.cat===tx.cat);if(!meta)return;
   // Fix 1: usa fluxo de caixa para consistência com metas e budget card
   const total=monthFluxoCaixa().filter(t=>t.cat===tx.cat).reduce((s,t)=>s+t.amount,0);
-  const cat=getAllCats().find(c=>c.id===tx.cat);
-  const label=cat?.label||tx.cat;
   if(total>meta.value){
+    const cat=getAllCats().find(c=>c.id===tx.cat);
+    const label=cat?.label||tx.cat;
     setTimeout(()=>{
       toast('⚠️ Limite de '+label+' ultrapassado!');
       sendNotification('⚠️ Limite ultrapassado',`Categoria ${label} ultrapassou o limite de ${fmtBRL(meta.value)} este mês.`,'limite-cat');
-    },600);
-  }else if(meta.value>0&&total>=meta.value*0.8){
-    setTimeout(()=>{
-      toast('🟡 '+label+' já usou '+Math.round(total/meta.value*100)+'% do limite');
     },600);
   }
 }
@@ -2479,10 +2578,16 @@ function openEdit(id){
   buildCatFilters();
   document.getElementById('edit-cat').value=t.cat;
   ['pix','cartao','dinheiro'].forEach(x=>document.getElementById('ep-'+x).classList.toggle('selected',x===t.payment));
+  // person btns
+  const pb=document.getElementById('edit-person-btns');
+  pb.innerHTML=`<button class="toggle-btn${t.person==='p1'?' selected':''}" onclick="setEditPerson('p1')" id="epp-p1">${p1()}</button>
+    <button class="toggle-btn${t.person==='p2'?' selected':''}" onclick="setEditPerson('p2')" id="epp-p2">${p2()}</button>
+    <button class="toggle-btn${t.person==='ambos'?' selected':''}" onclick="setEditPerson('ambos')" id="epp-ambos">Ambos</button>`;
   document.getElementById('modal-overlay').style.display='flex';
 }
 function closeModal(){document.getElementById('modal-overlay').style.display='none';editingId=null;}
 function setEditPay(p){editPay=p;['pix','cartao','dinheiro'].forEach(x=>document.getElementById('ep-'+x).classList.toggle('selected',x===p));}
+function setEditPerson(p){['p1','p2','ambos'].forEach(x=>{const el=document.getElementById('epp-'+x);if(el)el.classList.toggle('selected',x===p);});document.getElementById('modal-overlay').dataset.editPerson=p;}
 function saveEdit(){
   if(!editingId)return;
   const t=state.transactions.find(x=>x.id===editingId);if(!t)return;
@@ -2491,6 +2596,8 @@ function saveEdit(){
   t.date=document.getElementById('edit-data').value||t.date;
   t.payment=editPay;
   t.cat=document.getElementById('edit-cat').value||t.cat;
+  const selPb=document.querySelector('#edit-person-btns .selected');
+  if(selPb)t.person=selPb.id.replace('epp-','');
   // Bug fix: recalcula faturaCartao se data ou forma de pagamento foi alterada,
   // para que o gasto continue caindo na fatura correta do cartão
   if(t.payment==='cartao'&&t.cartaoId){
@@ -2522,7 +2629,7 @@ function hideSuggestions(){setTimeout(()=>{document.getElementById('autocomplete
 function pickSuggestion(val){
   document.getElementById('f-desc').value=val;
   const prev=state.transactions.find(t=>t.desc===val);
-  if(prev){selectCat(prev.cat);selectPayment(prev.payment);}
+  if(prev){selectCat(prev.cat);selectPayment(prev.payment);selectPerson(prev.person);}
   document.getElementById('autocomplete-list').style.display='none';
 }
 
@@ -2711,8 +2818,28 @@ function renderAnalises(){
     </div>`;
   }).join('')||'<div class="empty">Sem dados suficientes</div>';
 
+  // Ticket médio
+  const tickets=document.getElementById('ticket-medio');
+  const pays=['pix','cartao','dinheiro'];
+  const payLabels={pix:'Pix',cartao:'Cartão',dinheiro:'Dinheiro'};
+  tickets.innerHTML=pays.map(pay=>{
+    const txs=state.transactions.filter(t=>t.payment===pay);
+    if(!txs.length)return'';
+    const avg=txs.reduce((s,t)=>s+t.amount,0)/txs.length;
+    const max=Math.max(...txs.map(t=>t.amount));
+    const min=Math.min(...txs.map(t=>t.amount));
+    return`<div class="stat-row">
+      <div>
+        <div class="stat-label">${payLabels[pay]} <small style="color:var(--text3)">(${txs.length} transações)</small></div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px">Mín: ${fmtBRL(min)} · Máx: ${fmtBRL(max)}</div>
+      </div>
+      <div class="stat-value">${fmtBRL(avg)}</div>
+    </div>`;
+  }).join('')||'<div class="empty">Sem dados suficientes</div>';
+
   // Bug fix: gráfico por último e protegido — se o Chart.js do CDN ainda não
-  // carregou, não deve impedir o "Comparativo por categoria" de aparecer.
+  // carregou, não deve impedir o "Comparativo por categoria" e o "Ticket
+  // médio" (que vêm depois dele no código) de aparecerem.
   try{
     const ctxD=document.getElementById('chart-diasemana');
     if(ctxD&&typeof Chart!=='undefined'){
@@ -2905,6 +3032,8 @@ function deleteReserva(id){state.reservas=state.reservas.filter(r=>r.id!==id);sa
 
 // ─── CONFIG ────────────────────────────────────────────────────────────────
 function renderConfig(){
+  document.getElementById('cfg-p1').value=state.p1Name||'Fladnny';
+  document.getElementById('cfg-p2').value=state.p2Name||'Thaís';
   renderCartoesList();
   buildCartaoSelects();
   renderRecorrentes();
@@ -2914,7 +3043,11 @@ function renderConfig(){
   renderFavoritos();
   loadNotifPrefs();
   loadFirebaseConfig();
-  buildColorSwatches();
+}
+function saveConfig(){
+  state.p1Name=document.getElementById('cfg-p1').value.trim()||'Fladnny';
+  state.p2Name=document.getElementById('cfg-p2').value.trim()||'Thaís';
+  save();updatePersonBtns();buildCatFilters();toast('Nomes salvos!');
 }
 function exportData(){
   const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'});
@@ -2950,7 +3083,7 @@ function buildFinancialContext(){
   const allTxs=state.transactions;if(!allTxs.length)return'Ainda não há gastos registrados.';
   const byMonth={};allTxs.forEach(t=>{const m=t.date.slice(0,7);if(!byMonth[m])byMonth[m]=[];byMonth[m].push(t);});
   const rendaMesAtual=getRendaMes(state.currentMonth);
-  let ctx=`Renda fixa de ${faturaLabel(state.currentMonth)}: ${rendaMesAtual?fmtBRL(rendaMesAtual):'não informada'}\n\n`;
+  let ctx=`Casal: ${p1()} e ${p2()}\nRenda fixa de ${faturaLabel(state.currentMonth)}: ${rendaMesAtual?fmtBRL(rendaMesAtual):'não informada'}\n\n`;
   Object.entries(byMonth).sort().slice(-4).forEach(([m,txs])=>{
     const total=txs.reduce((s,t)=>s+t.amount,0);
     const pix=txs.filter(t=>t.payment==='pix').reduce((s,t)=>s+t.amount,0);
@@ -2967,7 +3100,7 @@ async function sendAI(){
   const input=document.getElementById('ai-input');const q=input.value.trim();if(!q)return;
   input.value='';addMsg('user',q);addMsg('loading','Analisando...');
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:`Assistente financeiro pessoal (brasileiro). Responda em português, direto e prático. Foco em reduzir cartão e controlar gastos do dia a dia.\n\n${buildFinancialContext()}`,messages:[{role:'user',content:q}]})});
+    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-6',max_tokens:1000,system:`Assistente financeiro para o casal ${p1()} e ${p2()} (brasileiros). Responda em português, direto e prático. Foco em reduzir cartão e controlar gastos do dia a dia.\n\n${buildFinancialContext()}`,messages:[{role:'user',content:q}]})});
     const data=await res.json();removeLoading();addMsg('assistant',data.content?.[0]?.text||'Não consegui processar.');
   }catch(e){removeLoading();addMsg('assistant','Erro de conexão.');}
 }
@@ -3020,7 +3153,7 @@ self.addEventListener('fetch',e=>{
   );
 });
 
-self.addEventListener('push',e=>{const d=e.data?e.data.json():{};self.registration.showNotification(d.title||'GP - Gaste&Poupe',{body:d.body||'',icon:d.icon||'',badge:d.icon||''});});
+self.addEventListener('push',e=>{const d=e.data?e.data.json():{};self.registration.showNotification(d.title||'Nós dois',{body:d.body||'',icon:d.icon||'',badge:d.icon||''});});
 `;
   const blob=new Blob([swCode],{type:'application/javascript'});
   const swUrl=URL.createObjectURL(blob);
@@ -3215,7 +3348,7 @@ function agendarResumoSemanal(){
     const{totalSemana,pix,cartao,topCats}=gerarResumoSemanal();
     const topStr=topCats.slice(0,2).map(([c,v])=>{const cat=getAllCats().find(x=>x.id===c);return`${cat?cat.label:c}: ${fmtBRL(v)}`;}).join(', ');
     sendNotification(
-      '📊 Resumo semanal — GP',
+      '📊 Resumo semanal — Nós dois',
       `Semana: ${fmtBRL(totalSemana)} (Pix: ${fmtBRL(pix)} / Cartão: ${fmtBRL(cartao)})${topStr?'\n'+topStr:''}`,
       'resumo-semanal'
     );
@@ -3401,7 +3534,7 @@ function renderFaturasVisao(){
               <span style="font-size:16px;">${cat.label.split(' ')[0]}</span>
               <div>
                 <div style="font-size:13px;font-weight:500;">${t.desc}${parcela}</div>
-                <div style="font-size:11px;color:var(--text3);">${dataFmt} · ${cat.label.split(' ').slice(1).join(' ')}</div>
+                <div style="font-size:11px;color:var(--text3);">${dataFmt} · ${t.person==='p1'?p1():t.person==='p2'?p2():'Ambos'}</div>
               </div>
             </div>
             <div style="font-weight:700;color:var(--text);font-size:13px;">${fmtBRL(t.amount)}</div>
@@ -3660,63 +3793,6 @@ function updateThemeBtn(){
   const isDark=document.documentElement.getAttribute('data-theme')==='dark'||
     (document.documentElement.getAttribute('data-theme')!=='light'&&window.matchMedia('(prefers-color-scheme:dark)').matches);
   btn.textContent=isDark?'☀️':'🌙';
-}
-
-// ─── COR DO APP (ACCENT COLOR) ──────────────────────────────────────────────
-const ACCENT_PRESETS=['#00c48c','#3d8ef0','#7c6ef5','#e0507a','#e08a00','#e2574c','#17a2b8','#2ea043'];
-function hexToRgb(hex){
-  hex=hex.replace('#','');
-  if(hex.length===3)hex=hex.split('').map(c=>c+c).join('');
-  const num=parseInt(hex,16);
-  return{r:(num>>16)&255,g:(num>>8)&255,b:num&255};
-}
-function rgbToHex(r,g,b){
-  return'#'+[r,g,b].map(x=>Math.max(0,Math.min(255,Math.round(x))).toString(16).padStart(2,'0')).join('');
-}
-// desloca uma cor em direção a branco (percent>0) ou preto (percent<0)
-function shadeColor(hex,percent){
-  const{r,g,b}=hexToRgb(hex);
-  const target=percent<0?0:255;
-  const p=Math.abs(percent)/100;
-  return rgbToHex(r+(target-r)*p,g+(target-g)*p,b+(target-b)*p);
-}
-function applyAccentColor(hex,persist=true){
-  if(!/^#[0-9a-f]{6}$/i.test(hex))return;
-  const root=document.documentElement.style;
-  root.setProperty('--teal',hex);
-  root.setProperty('--teal-dark',shadeColor(hex,-22));
-  root.setProperty('--teal-light',shadeColor(hex,86));
-  document.getElementById('meta-theme-color')?.setAttribute('content',hex);
-  if(persist){
-    localStorage.setItem('app-accent-color',hex);
-    // Atualiza também o ícone do PWA para refletir a nova cor na próxima instalação
-    const appleIcon=document.getElementById('apple-touch-icon');
-    if(appleIcon){
-      const svg=`<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='${hex}'/><text x='90' y='113' font-size='68' font-weight='800' text-anchor='middle' font-family='system-ui' fill='white'>GP</text></svg>`;
-      appleIcon.href="data:image/svg+xml,"+encodeURIComponent(svg);
-    }
-  }
-  const picker=document.getElementById('accent-color-picker');
-  if(picker)picker.value=hex;
-  document.querySelectorAll('.color-swatch').forEach(s=>s.classList.toggle('selected',s.dataset.color.toLowerCase()===hex.toLowerCase()));
-}
-function pickPresetColor(hex){applyAccentColor(hex);toast('Cor aplicada!');}
-function onAccentColorInput(){
-  const val=document.getElementById('accent-color-picker').value;
-  applyAccentColor(val);
-}
-function buildColorSwatches(){
-  const wrap=document.getElementById('color-swatches');
-  if(!wrap)return;
-  const saved=localStorage.getItem('app-accent-color')||'#00c48c';
-  wrap.innerHTML=ACCENT_PRESETS.map(hex=>
-    `<button class="color-swatch${hex.toLowerCase()===saved.toLowerCase()?' selected':''}" data-color="${hex}" style="background:${hex}" onclick="pickPresetColor('${hex}')" title="${hex}"></button>`
-  ).join('');
-}
-function initAccentColor(){
-  const saved=localStorage.getItem('app-accent-color');
-  if(saved)applyAccentColor(saved,false);
-  buildColorSwatches();
 }
 
 // ─── TAGS ──────────────────────────────────────────────────────────────────
@@ -4269,7 +4345,6 @@ function autoLancarFixos(){
 // ─── INIT ──────────────────────────────────────────────────────────────────
 runMigrations();
 initTheme();
-initAccentColor();
 buildCatGrid();
 buildPeriodoOptions();
 buildCartaoSelects();
@@ -4280,6 +4355,7 @@ document.getElementById('f-parcela-inicio').value=new Date().toISOString().slice
 document.getElementById('f-data').addEventListener('change',()=>{
   if(selPay==='cartao') atualizarFaturaPreview();
 });
+updatePersonBtns();
 renderDashboard();
 renderMetas();
 updateMonthLabel();
