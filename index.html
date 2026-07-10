@@ -1247,6 +1247,14 @@ function deleteCustomCat(id){
 function toggleCatPadrao(id){
   if(!state.catsRemovidas)state.catsRemovidas=[];
   const jaRemovida=state.catsRemovidas.includes(id);
+  if(!jaRemovida&&id==='outros'){
+    // "Outros" é a categoria coringa usada como fallback em todo o app
+    // (novo lançamento, importação, categoria apagada etc.) — remover ela
+    // deixaria o app sem um "catch-all" e poderia confundir mais do que
+    // ajudar. Por isso não deixamos ocultar essa em específico.
+    toast('"Outros" não pode ser removida — é a categoria coringa do app');
+    return;
+  }
   if(jaRemovida){
     state.catsRemovidas=state.catsRemovidas.filter(x=>x!==id);
   }else{
@@ -1262,10 +1270,14 @@ function renderCatPadraoList(){
   const removidas=state.catsRemovidas||[];
   el.innerHTML=CATS_BASE.map(c=>{
     const removida=removidas.includes(c.id);
+    const ehOutros=c.id==='outros';
     return`<div class="custom-cat-item"${removida?' style="opacity:.5;"':''}>
       <div class="cat-color-dot" style="background:${c.color}"></div>
       <span style="font-size:14px;flex:1;">${c.label}${removida?' <small style="color:var(--text3)">(oculta)</small>':''}</span>
-      <button class="${removida?'btn-outline':'rec-delete'}" style="${removida?'padding:4px 10px;font-size:12px;':''}" onclick="toggleCatPadrao('${c.id}')">${removida?'↺ Restaurar':'✕'}</button>
+      ${ehOutros&&!removida
+        ?'<span style="font-size:11px;color:var(--text3);padding:4px 10px;">🔒 fixa</span>'
+        :`<button class="${removida?'btn-outline':'rec-delete'}" style="${removida?'padding:4px 10px;font-size:12px;':''}" onclick="toggleCatPadrao('${c.id}')">${removida?'↺ Restaurar':'✕'}</button>`
+      }
     </div>`;
   }).join('');
 }
@@ -1655,7 +1667,7 @@ function renderReceitas(){
   document.getElementById('rec-saldo-sub').textContent=saldo>=0?'✅ Mês no positivo':'⚠️ Mês no negativo';
 
   // lista de receitas do mês
-  const recs=monthReceitas().sort((a,b)=>b.date.localeCompare(a.date));
+  const recs=[...monthReceitas()].reverse().sort((a,b)=>b.date.localeCompare(a.date));
   const riList=document.getElementById('ri-list');
   riList.innerHTML=recs.length?recs.map(r=>{
     const cat=CAT_RECEITA[r.cat]||CAT_RECEITA.outros;
@@ -1914,7 +1926,13 @@ function renderDashboard(){
       <div class="progress-bar"><div class="progress-fill" style="width:${Math.round(p.val/maxP*100)}%;background:${p.color}"></div></div></div>`
     ).join('')||'<div class="empty">Nenhum gasto registrado</div>';
 
-  const recent=[...txs].sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
+  // Fix 13: ordenar só por data (string "AAAA-MM-DD") não distingue vários
+  // lançamentos do MESMO dia — como o sort é estável, os mais antigos do dia
+  // ficavam na frente dos mais novos, e o lançamento que você acabou de
+  // criar podia nem aparecer entre os 5 primeiros. Invertendo a lista antes
+  // de ordenar, os empates de mesma data passam a ficar do mais recente
+  // (criado por último) para o mais antigo, sem depender do formato do id.
+  const recent=[...txs].reverse().sort((a,b)=>b.date.localeCompare(a.date)).slice(0,5);
   document.getElementById('recent-list').innerHTML=recent.length?recent.map(txItem).join(''):'<div class="empty">Nenhum lançamento ainda</div>';
 
   // Bug fix: os gráficos (Chart.js) ficam por último e protegidos por
@@ -2073,7 +2091,7 @@ function renderHistory(){
     t.desc.toLowerCase().includes(search)||
     (t.tags||[]).some(tag=>tag.includes(search))
   );
-  txs=[...txs].sort((a,b)=>b.date.localeCompare(a.date));
+  txs=[...txs].reverse().sort((a,b)=>b.date.localeCompare(a.date));
 
   const totalFiltrado=txs.reduce((s,t)=>s+t.amount,0);
   const countEl=document.getElementById('history-count');
@@ -2558,14 +2576,27 @@ function deleteTx(id){
   const cat=getAllCats().find(c=>c.id===t.cat);
   const label=`${cat?.label.split(' ')[0]||'📦'} ${t.desc} — ${fmtBRL(t.amount)}`;
   if(!confirm(`Apagar este lançamento?\n\n${label}\n\nEssa ação não pode ser desfeita.`))return;
-  state.transactions=state.transactions.filter(t=>t.id!==id);save();
+
+  // Fix 11: se essa compra faz parte de um parcelamento, pergunta se as
+  // parcelas FUTURAS (ainda não vencidas/passadas) também devem ser apagadas.
+  // Sem isso, apagar "a compra" só removia 1 de N parcelas e o restante
+  // continuava aparecendo nos meses seguintes.
+  let idsParaApagar=[id];
+  if(t.parcelaGrupo){
+    const futuras=state.transactions.filter(x=>x.parcelaGrupo===t.parcelaGrupo&&x.parcelaNum>t.parcelaNum);
+    if(futuras.length&&confirm(`Essa compra faz parte de um parcelamento (${t.parcelaInfo}).\n\nApagar TAMBÉM as ${futuras.length} parcela(s) futura(s)?\n\nCancelar apaga somente esta parcela.`)){
+      idsParaApagar=idsParaApagar.concat(futuras.map(x=>x.id));
+    }
+  }
+  state.transactions=state.transactions.filter(t=>!idsParaApagar.includes(t.id));save();
   // Bug fix: sempre re-renderiza dashboard e receitas para atualizar limites,
   // independente de qual aba está ativa
   renderDashboard();
   renderReceitas();
   const active=document.querySelector('.page.active')?.id;
   if(active==='page-history')renderHistory();
-  if(active==='page-cal')renderCal();
+  if(active==='page-cal'){renderCal();if(calDiaSelecionado)showDayDetail(calDiaSelecionado);}
+  toast(idsParaApagar.length>1?`${idsParaApagar.length} parcelas apagadas`:'Lançamento apagado');
 }
 
 // ─── EDITAR ────────────────────────────────────────────────────────────────
@@ -2591,13 +2622,24 @@ function setEditPerson(p){['p1','p2','ambos'].forEach(x=>{const el=document.getE
 function saveEdit(){
   if(!editingId)return;
   const t=state.transactions.find(x=>x.id===editingId);if(!t)return;
-  t.amount=parseFloat(document.getElementById('edit-valor').value)||t.amount;
-  t.desc=document.getElementById('edit-desc').value.trim()||t.desc;
-  t.date=document.getElementById('edit-data').value||t.date;
-  t.payment=editPay;
-  t.cat=document.getElementById('edit-cat').value||t.cat;
+  const val=parseFloat(document.getElementById('edit-valor').value)||t.amount;
+  const desc=document.getElementById('edit-desc').value.trim()||t.desc;
+  const date=document.getElementById('edit-data').value||t.date;
+  const payment=editPay;
+  const cat=document.getElementById('edit-cat').value||t.cat;
   const selPb=document.querySelector('#edit-person-btns .selected');
-  if(selPb)t.person=selPb.id.replace('epp-','');
+  const person=selPb?selPb.id.replace('epp-',''):t.person;
+
+  // Fix 11: mesma propagação de parcelamento usada em saveInlineEdit
+  let propagar=false;
+  if(t.parcelaGrupo){
+    const futuras=state.transactions.filter(x=>x.parcelaGrupo===t.parcelaGrupo&&x.parcelaNum>t.parcelaNum);
+    if(futuras.length){
+      propagar=confirm(`Essa compra faz parte de um parcelamento (${t.parcelaInfo}).\n\nAplicar essas alterações TAMBÉM às ${futuras.length} parcela(s) futura(s)?\n\n(A data de cada parcela é mantida.)`);
+    }
+  }
+
+  t.amount=val;t.desc=desc;t.date=date;t.payment=payment;t.cat=cat;t.person=person;
   // Bug fix: recalcula faturaCartao se data ou forma de pagamento foi alterada,
   // para que o gasto continue caindo na fatura correta do cartão
   if(t.payment==='cartao'&&t.cartaoId){
@@ -2606,12 +2648,26 @@ function saveEdit(){
     delete t.faturaCartao;
     delete t.cartaoId;
   }
+
+  if(propagar){
+    state.transactions.filter(x=>x.parcelaGrupo===t.parcelaGrupo&&x.parcelaNum>t.parcelaNum).forEach(f=>{
+      f.amount=val;f.desc=desc;f.cat=cat;f.payment=payment;f.person=person;
+      if(f.payment==='cartao'&&f.cartaoId){
+        f.faturaCartao=calcFaturaMes(f.date,f.cartaoId);
+      } else if(f.payment!=='cartao'){
+        delete f.faturaCartao;
+        delete f.cartaoId;
+      }
+    });
+  }
+
   save();closeModal();
   // Bug fix: re-renderiza dashboard e receitas independente da aba ativa
   renderDashboard();renderReceitas();
   const active=document.querySelector('.page.active')?.id;
   if(active==='page-history')renderHistory();
-  toast('Lançamento atualizado!');
+  if(active==='page-cal'){renderCal();if(calDiaSelecionado)showDayDetail(calDiaSelecionado);}
+  toast(propagar?'Lançamento atualizado (e parcelas futuras)!':'Lançamento atualizado!');
 }
 
 // ─── AUTOCOMPLETE ──────────────────────────────────────────────────────────
@@ -2688,7 +2744,7 @@ function renderFaturaCard(){
       <span style="font-size:14px;font-weight:600;">Total da fatura</span>
       <span style="font-size:20px;font-weight:700;color:${cartao?.cor||'var(--blue)'}">${fmtBRL(total)}</span>
     </div>
-    ${todas.length?todas.sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
+    ${todas.length?[...todas].reverse().sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
       const cat=getAllCats().find(c=>c.id===t.cat)||CATS[getAllCats().length-1];
       const d=t.date.split('-');
       const parcelaBadge=t.parcelaInfo?`<span class="badge" style="background:var(--purple-light);color:var(--purple);font-size:10px;">${t.parcelaInfo}</span> `:'';
@@ -2771,6 +2827,7 @@ function renderCal(){
 }
 
 function showDayDetail(d){
+  calDiaSelecionado=d;
   const[y,m]=state.currentMonth.split('-').map(Number);
   const dateStr=`${state.currentMonth}-${String(d).padStart(2,'0')}`;
   const txs=state.transactions.filter(t=>t.date===dateStr);
@@ -3021,10 +3078,64 @@ function renderMetas(){
   }).join(''):'<div class="empty">Nenhuma meta definida</div>';
   document.getElementById('reservas-list').innerHTML=state.reservas.length?state.reservas.map(r=>{
     const pct=Math.min(Math.round(r.atual/r.meta*100),100);
-    return`<div class="meta-item"><div class="meta-header"><span class="meta-name">🏦 ${r.nome}</span><button class="meta-delete" onclick="deleteReserva('${r.id}')">✕</button></div>
+    const atingida=r.atual>=r.meta;
+    return`<div class="meta-item" id="reserva-item-${r.id}">
+      <div class="meta-header">
+        <span class="meta-name">🏦 ${r.nome}${atingida?' <span style="color:var(--teal)">🎉 Meta atingida!</span>':''}</span>
+        <div style="display:flex;gap:4px;">
+          <button class="meta-delete" onclick="depositarReserva('${r.id}')" title="Depositar">💰</button>
+          <button class="meta-delete" onclick="openReservaEdit('${r.id}')" title="Editar">✏️</button>
+          <button class="meta-delete" onclick="deleteReserva('${r.id}')" title="Excluir">✕</button>
+        </div>
+      </div>
       <div class="progress-header" style="font-size:13px;"><span style="color:var(--text2)">${fmtBRL(r.atual)} de ${fmtBRL(r.meta)}</span><span style="color:var(--text3)">${pct}%</span></div>
-      <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill fill-teal" style="width:${pct}%"></div></div></div>`;
+      <div class="progress-bar" style="margin-top:6px;"><div class="progress-fill ${atingida?'fill-teal':'fill-teal'}" style="width:${pct}%"></div></div>
+    </div>`;
   }).join(''):'';
+}
+
+// Fix 12: reservas antes só podiam ser criadas ou apagadas — não havia como
+// atualizar o valor acumulado com o tempo (ex: "guardei mais R$300 este
+// mês"), forçando a apagar e recriar tudo do zero. Agora dá pra depositar
+// rapidamente ou editar nome/meta/valor por completo.
+function depositarReserva(id){
+  const r=state.reservas.find(x=>x.id===id);if(!r)return;
+  const val=parseFloat(prompt(`Depositar quanto em "${r.nome}"?\n\nAtualmente: ${fmtBRL(r.atual)} de ${fmtBRL(r.meta)}`,''));
+  if(!val||val<=0)return;
+  r.atual+=val;save();renderMetas();
+  toast(r.atual>=r.meta?`🎉 Meta de "${r.nome}" atingida!`:`+${fmtBRL(val)} depositado em "${r.nome}"!`);
+}
+
+function openReservaEdit(id){
+  document.querySelectorAll('.reserva-inline-edit').forEach(el=>el.remove());
+  const r=state.reservas.find(x=>x.id===id);if(!r)return;
+  const item=document.getElementById('reserva-item-'+id);if(!item)return;
+  const editHtml=`<div class="tx-inline-edit reserva-inline-edit" id="reserva-edit-${id}">
+    <div class="tx-inline-row">
+      <input type="text" id="re-nome-${id}" value="${r.nome.replace(/"/g,'&quot;')}" placeholder="Nome" style="flex:2;">
+    </div>
+    <div class="tx-inline-row">
+      <input type="number" id="re-meta-${id}" value="${r.meta}" placeholder="Meta R$" inputmode="decimal">
+      <input type="number" id="re-atual-${id}" value="${r.atual}" placeholder="Acumulado R$" inputmode="decimal">
+    </div>
+    <div class="tx-inline-actions">
+      <button class="btn-save-inline" onclick="saveReservaEdit('${id}')">✓ Salvar</button>
+      <button class="btn-cancel-inline" onclick="document.getElementById('reserva-edit-${id}').remove()">Cancelar</button>
+    </div>
+  </div>`;
+  item.insertAdjacentHTML('afterend',editHtml);
+}
+
+function saveReservaEdit(id){
+  const r=state.reservas.find(x=>x.id===id);if(!r)return;
+  const nome=document.getElementById('re-nome-'+id)?.value.trim();
+  const meta=parseFloat(document.getElementById('re-meta-'+id)?.value);
+  const atual=parseFloat(document.getElementById('re-atual-'+id)?.value)||0;
+  if(!nome)return toast('Informe o nome');
+  if(!meta||meta<=0)return toast('Informe a meta');
+  r.nome=nome;r.meta=meta;r.atual=atual;
+  save();renderMetas();
+  toast('Reserva atualizada!');
 }
 function applySuggestion(cat,val){document.getElementById('meta-cat').value=cat;document.getElementById('meta-val').value=val;toast('Sugestão aplicada — clique em Salvar meta');}
 function deleteMeta(cat){state.metas=state.metas.filter(m=>m.cat!==cat);save();renderMetas();}
@@ -3115,7 +3226,7 @@ function registerSW(){
   // corresponder ao caminho onde o app está hospedado).
   const pageUrl=location.href.split('#')[0];
   const swCode=`
-const CACHE='nos-dois-v2';
+const CACHE='nos-dois-v3';
 const SHELL_URL=${JSON.stringify(pageUrl)};
 const ASSETS=[SHELL_URL];
 
@@ -3525,7 +3636,7 @@ function renderFaturasVisao(){
 
     // Lista de compras da fatura atual (ordenada por data desc)
     const listaCompras=txsAtuais.length
-      ? [...txsAtuais].sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
+      ? [...txsAtuais].reverse().sort((a,b)=>b.date.localeCompare(a.date)).map(t=>{
           const cat=getCat(t.cat);
           const dataFmt=t.date.split('-').reverse().slice(0,2).join('/');
           const parcela=t.parcelaInfo?` <span style="color:var(--purple);font-size:10px;">(${t.parcelaInfo})</span>`:'';
@@ -3835,6 +3946,7 @@ function tagsHtml(tags){
 
 // ─── EDIÇÃO INLINE ─────────────────────────────────────────────────────────
 let inlineEditId=null;
+let calDiaSelecionado=null;
 
 let inlineEditTags=[];
 
@@ -3909,12 +4021,25 @@ function saveInlineEdit(id){
   const val=parseFloat(document.getElementById('ie-valor-'+id)?.value);
   const desc=document.getElementById('ie-desc-'+id)?.value.trim();
   if(!val||!desc)return toast('Preencha valor e descrição');
-  t.amount=val;
-  t.desc=desc;
-  t.cat=document.getElementById('ie-cat-'+id)?.value||t.cat;
-  t.payment=document.getElementById('ie-pay-'+id)?.value||t.payment;
-  t.date=document.getElementById('ie-date-'+id)?.value||t.date;
-  t.tags=inlineEditTags.length?[...inlineEditTags]:undefined;
+  const cat=document.getElementById('ie-cat-'+id)?.value||t.cat;
+  const payment=document.getElementById('ie-pay-'+id)?.value||t.payment;
+  const date=document.getElementById('ie-date-'+id)?.value||t.date;
+  const tags=inlineEditTags.length?[...inlineEditTags]:undefined;
+
+  // Fix 11: se essa compra faz parte de um parcelamento, pergunta se as
+  // alterações (valor, descrição, categoria, forma de pagamento) devem ser
+  // copiadas também para as parcelas FUTURAS. A data de cada parcela nunca
+  // é alterada — só a da parcela editada. Sem isso, editar "a compra"
+  // corrigia só 1 de N parcelas e o resto continuava com o valor/nome antigo.
+  let propagar=false;
+  if(t.parcelaGrupo){
+    const futuras=state.transactions.filter(x=>x.parcelaGrupo===t.parcelaGrupo&&x.parcelaNum>t.parcelaNum);
+    if(futuras.length){
+      propagar=confirm(`Essa compra faz parte de um parcelamento (${t.parcelaInfo}).\n\nAplicar essas alterações TAMBÉM às ${futuras.length} parcela(s) futura(s)?\n\n(Valor, descrição, categoria e forma de pagamento são copiados — a data de cada parcela é mantida.)`);
+    }
+  }
+
+  t.amount=val;t.desc=desc;t.cat=cat;t.payment=payment;t.date=date;t.tags=tags;
   // Fix 2: recalcula faturaCartao se pagamento é cartão (igual ao saveEdit)
   if(t.payment==='cartao'&&t.cartaoId){
     t.faturaCartao=calcFaturaMes(t.date,t.cartaoId);
@@ -3922,13 +4047,27 @@ function saveInlineEdit(id){
     delete t.faturaCartao;
     delete t.cartaoId;
   }
+
+  if(propagar){
+    state.transactions.filter(x=>x.parcelaGrupo===t.parcelaGrupo&&x.parcelaNum>t.parcelaNum).forEach(f=>{
+      f.amount=val;f.desc=desc;f.cat=cat;f.payment=payment;f.tags=tags?[...tags]:undefined;
+      if(f.payment==='cartao'&&f.cartaoId){
+        f.faturaCartao=calcFaturaMes(f.date,f.cartaoId);
+      } else if(f.payment!=='cartao'){
+        delete f.faturaCartao;
+        delete f.cartaoId;
+      }
+    });
+  }
+
   save();closeInlineEdit();
   // Fix 3: sempre atualiza dashboard e receitas para refletir limites corretos
   renderDashboard();
   renderReceitas();
   const active=document.querySelector('.page.active')?.id;
   if(active==='page-history')renderHistory();
-  toast('✓ Atualizado!');
+  if(active==='page-cal'){renderCal();if(calDiaSelecionado)showDayDetail(calDiaSelecionado);}
+  toast(propagar?'✓ Atualizado (e parcelas futuras)!':'✓ Atualizado!');
 }
 
 // ─── IA PROATIVA ───────────────────────────────────────────────────────────
